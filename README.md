@@ -40,15 +40,15 @@ npm run check
 
 ```
 src/
-  app/                 # Expo Router screens (tabs + inventory flows)
+  app/                 # Expo Router screens (tabs + inventory/intake flows)
   components/ui/       # Reusable UI primitives
   constants/           # Design tokens, forms, units, copy
   context/             # Database provider
   db/                  # SQLite, migrations, repositories
-  domain/              # Aggregation helpers (medicine ≠ batch)
+  domain/              # Schedule engine, FEFO, intake, inventory summaries
   hooks/               # Bootstrap / feature hooks
   services/            # Analytics, ads, medicine media
-  utils/               # Dates, expiry, locale decimals, quantity
+  utils/               # Dates, expiry, locale decimals, quantity, dose
 docs/                  # Privacy, date strategy, project status
 ```
 
@@ -59,6 +59,13 @@ docs/                  # Privacy, date strategy, project status
 - `Medicine` — логический препарат (`Нурофен 200 мг`)
 - `MedicineBatch` — конкретная упаковка с `quantity` и `expiryDate`
 - Несколько упаковок могут принадлежать одному лекарству
+
+**MedicationCourse ≠ MedicationSchedule ≠ IntakeRecord.**
+
+- Course — назначение лекарства человеку (доза, даты, PRN)
+- Schedule — правило времени/дней (одна строка на одно время)
+- IntakeRecord — факт taken / skipped / snoozed (+ actual time)
+- Occurrences вычисляются движком, не materialize бесконечное будущее
 
 ### Startup flow
 
@@ -71,16 +78,17 @@ docs/                  # Privacy, date strategy, project status
 
 ### Navigation
 
-1. Сегодня
+1. Сегодня — приём сегодня + требует внимания
 2. Аптечка
-3. Приём
+3. Приём — активные курсы + история
 4. Покупки
 5. Ещё
 
-Inventory flows (stack):
+Inventory / intake flows (stack):
 
 - `/medicines/add`, `/medicines/[id]`, edit, packs
 - `/cabinets`, `/cabinets/[cabinetId]/locations`
+- `/courses/form` (create/edit course)
 
 ### Database migrations
 
@@ -95,6 +103,8 @@ Inventory flows (stack):
 
 **Schema v3:** `medicines.low_stock_threshold`; settings keys `expiry_warning_days`, `default_low_stock_threshold`
 
+**Schema v4:** `medication_courses`, `medication_schedules`, `intake_records`, `intake_inventory_movements`
+
 ### Monitoring (Phase 2)
 
 - Effective expiry = earlier of package expiry and after-opening expiry
@@ -103,6 +113,14 @@ Inventory flows (stack):
 - Today «Требует внимания» with priority: expired → empty → expiring soon → low stock
 - Settings: Ещё → Контроль запасов
 
+### Schedules & intake (Phase 3)
+
+- Types: daily, weekdays (bitmask), every N days (from course start), one-time, PRN
+- Occurrence key: `scheduleId + date + HH:mm` with unique active index
+- Taken → FEFO debit + movement ledger; skipped → no stock change; snooze → `snoozedUntil`
+- Shortfall: warn, allow partial consume, `inventoryShortfall`, never negative qty
+- Undo restores ledger quantities atomically
+- Native notifications **not** included (Phase 4)
 ## Git workflow
 
 - GitHub `main` is the source of truth
@@ -116,8 +134,8 @@ Inventory flows (stack):
 | --- | --- |
 | Phase 0 | Foundation |
 | Phase 1 | Аптечка / лекарства / партии |
-| Phase 2 | Сроки / остатки (**current**) |
-| Phase 3 | Курсы и приём |
+| Phase 2 | Сроки / остатки |
+| Phase 3 | Курсы и приём (**current**) |
 | Phase 4 | Native reminders |
 | Phase 5 | Покупки и семья |
 | Phase 6 | Scanning |

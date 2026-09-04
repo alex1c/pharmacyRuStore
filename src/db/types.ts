@@ -156,3 +156,87 @@ export interface AppMeta {
 	key: string
 	value: string
 }
+
+/** Schedule rule types supported in Phase 3. */
+export type ScheduleType =
+	| 'daily'
+	| 'weekdays'
+	| 'every_n_days'
+	| 'one_time'
+
+export type IntakeStatus = 'taken' | 'skipped' | 'snoozed'
+
+/**
+ * Weekday bitmask: Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64.
+ * Independent of locale weekday names.
+ */
+export type WeekdaysMask = number
+
+export interface MedicationCourse {
+	id: string
+	householdId: string
+	personId: string
+	medicineId: string
+	doseQuantity: number
+	doseUnit: MedicineUnit
+	startDate: string
+	endDate: string | null
+	instructions: string | null
+	isPrn: boolean
+	createdAt: string
+	updatedAt: string
+	archivedAt: string | null
+}
+
+export interface MedicationSchedule {
+	id: string
+	courseId: string
+	type: ScheduleType
+	timeOfDay: string | null
+	weekdaysMask: WeekdaysMask | null
+	intervalDays: number | null
+	oneTimeDate: string | null
+	createdAt: string
+	updatedAt: string
+	archivedAt: string | null
+}
+
+export interface IntakeRecord {
+	id: string
+	courseId: string
+	scheduleId: string | null
+	medicineId: string
+	personId: string
+	scheduledDate: string | null
+	scheduledTime: string | null
+	status: IntakeStatus
+	actualTakenAt: string | null
+	skippedAt: string | null
+	snoozedUntil: string | null
+	doseQuantity: number
+	doseUnit: MedicineUnit
+	note: string | null
+	inventoryShortfall: boolean
+	createdAt: string
+	updatedAt: string
+	cancelledAt: string | null
+}
+
+export interface IntakeInventoryMovement {
+	id: string
+	intakeRecordId: string
+	batchId: string
+	quantity: number
+	createdAt: string
+}
+
+export interface ScheduledOccurrence {
+	courseId: string
+	scheduleId: string
+	medicineId: string
+	personId: string
+	scheduledDate: string
+	scheduledTime: string
+	doseQuantity: number
+	doseUnit: MedicineUnit
+}

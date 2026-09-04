@@ -33,10 +33,14 @@ import {
 	archiveMedicine,
 	getMedicineSummary,
 } from '@/db/repositories/medicines'
+import { listActiveCoursesForMedicine } from '@/db/repositories/medicationCourses'
+import { listSchedulesForCourse } from '@/db/repositories/medicationSchedules'
 import { getAppSettings } from '@/db/repositories/settings'
 import { getLocationById } from '@/db/repositories/storageLocations'
-import { MedicineBatch, MedicineSummary } from '@/db/types'
+import { MedicationCourse, MedicineBatch, MedicineSummary } from '@/db/types'
 import { analytics } from '@/services/analytics'
+import { formatScheduleSummary } from '@/domain/scheduleEngine'
+import { formatDateRu } from '@/utils/formatRu'
 import { formatExpiryDisplay, formatExpiryUntilLabel } from '@/utils/expiry'
 import {
 	expiryStatusLabel,
@@ -50,6 +54,11 @@ interface BatchView extends MedicineBatch {
 	locationName: string | null
 }
 
+interface CourseView {
+	course: MedicationCourse
+	scheduleLabel: string
+}
+
 /**
  * Medicine detail with stock/expiry status and pack actions.
  */
@@ -58,6 +67,7 @@ export default function MedicineDetailScreen () {
 	const { executor } = useDatabase()
 	const [summary, setSummary] = useState<MedicineSummary | null>(null)
 	const [batches, setBatches] = useState<BatchView[]>([])
+	const [courses, setCourses] = useState<CourseView[]>([])
 	const [warningDays, setWarningDays] = useState(30)
 
 	const load = useCallback(async () => {
@@ -86,8 +96,18 @@ export default function MedicineDetailScreen () {
 				locationName: location?.name ?? null,
 			})
 		}
+		const activeCourses = await listActiveCoursesForMedicine(executor, id)
+		const courseViews: CourseView[] = []
+		for (const course of activeCourses) {
+			const schedules = await listSchedulesForCourse(executor, course.id)
+			courseViews.push({
+				course,
+				scheduleLabel: formatScheduleSummary(schedules, course.isPrn),
+			})
+		}
 		setSummary(nextSummary)
 		setBatches(enriched)
+		setCourses(courseViews)
 	}, [executor, id])
 
 	useFocusEffect(
@@ -220,6 +240,46 @@ export default function MedicineDetailScreen () {
 					style={styles.actionBtn}
 				/>
 			</View>
+
+			<SectionHeader title="Приём" />
+			{courses.length === 0 ? (
+				<Card style={styles.courseCard}>
+					<Text style={styles.emptyPacks}>Нет активных курсов</Text>
+				</Card>
+			) : (
+				courses.map((item) => (
+					<Card key={item.course.id} style={styles.courseCard}>
+						<Text style={styles.packQty}>{item.scheduleLabel}</Text>
+						<Text style={styles.packPlace}>
+							{formatQuantityWithUnit(
+								item.course.doseQuantity,
+								getMedicineUnitShortLabel(item.course.doseUnit),
+							)}{' '}
+							· с {formatDateRu(item.course.startDate)}
+						</Text>
+						<SecondaryButton
+							label="Изменить курс"
+							onPress={() =>
+								router.push({
+									pathname: '/courses/form',
+									params: { courseId: item.course.id },
+								})
+							}
+							style={styles.packButton}
+						/>
+					</Card>
+				))
+			)}
+			<PrimaryButton
+				label="Добавить в расписание"
+				onPress={() =>
+					router.push({
+						pathname: '/courses/form',
+						params: { medicineId: id },
+					})
+				}
+				style={styles.refill}
+			/>
 
 			<SectionHeader title="Упаковки" />
 			{batches.length === 0 ? (
@@ -373,6 +433,10 @@ const styles = StyleSheet.create({
 		textAlign: 'center',
 	},
 	packCard: {
+		marginBottom: spacing.sm,
+		gap: 4,
+	},
+	courseCard: {
 		marginBottom: spacing.sm,
 		gap: 4,
 	},

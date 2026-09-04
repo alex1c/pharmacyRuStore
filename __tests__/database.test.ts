@@ -18,7 +18,7 @@ describe('database foundation', () => {
 		const db = createTestSqlExecutor()
 		const version = await applyMigrations(db)
 		expect(version).toBe(getLatestSchemaVersion())
-		expect(await getSchemaVersion(db)).toBe(3)
+		expect(await getSchemaVersion(db)).toBe(4)
 	})
 
 	it('seeds default household, person and cabinet once', async () => {

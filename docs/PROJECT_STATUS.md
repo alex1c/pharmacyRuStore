@@ -2,7 +2,7 @@
 
 ## Current phase
 
-**Phase 2 — Сроки / остатки / «Требует внимания»** (complete)
+**Phase 3 — Курсы, расписания, приём и история** (complete)
 
 ## Completed
 
@@ -22,14 +22,45 @@
 - Stock control settings; per-medicine low-stock override
 - Compatible unit policy for active packs
 
+### Phase 3
+- Schema v4: `medication_courses`, `medication_schedules`, `intake_records`, `intake_inventory_movements`
+- Schedule types: daily, weekdays, every N days, one-time, PRN
+- Occurrence identity: `scheduleId + YYYY-MM-DD + HH:mm` (unique active index)
+- Today «Приём сегодня» with taken / skip / snooze (+10/+30/+60) / take-all
+- Intake tab: active courses + history (filter, pagination)
+- FEFO inventory debit with multi-pack split and movement ledger
+- Shortfall policy: warn → allow partial consume → `inventoryShortfall`, never negative qty
+- Atomic undo restores ledger quantities
+- Medicine detail «Приём» section + «Добавить в расписание»
+- No native notifications (Phase 4)
+
+## Schedule / intake policy
+
+- Calendar dates: `YYYY-MM-DD`; schedule times: local `HH:mm`; actual events: ISO UTC
+- Occurrences generated on demand (not pre-materialized forever)
+- Interval schedules count from `course.startDate`
+- Weekdays: bitmask Mon=1 … Sun=64 (locale-independent)
+- Editing schedule archives old rules and inserts new ones — past intake history is not rewritten
+- Finishing a course sets `endDate` + archives; history rows remain (no CASCADE wipe)
+- Dose unit must match active inventory unit; no tablet↔ml conversion
+- Dose correction that recalculates inventory is deferred; meta edit / undo-delete supported
+
+## Inventory shortfall policy
+
+If available stock &lt; planned dose:
+
+1. Show warning with available vs dose
+2. On «Всё равно отметить приём»: create `taken` record, consume available only, set `inventoryShortfall=true`
+3. Never write negative `quantity`
+
 ## Known issues
 
 - Archived medicine photos are not deleted from disk yet
 - Full shopping list not implemented (Phase 5)
+- Dose quantity correction with inventory recalculation deferred
 
 ## Deferred
 
-- Courses / intake confirmation (Phase 3)
 - Native reminders (Phase 4)
 - Shopping list & family management (Phase 5)
 - Package scanning (Phase 6)
@@ -37,18 +68,10 @@
 - AppMetrica + РСЯ production SDKs (Phase 8)
 - Final icon, RuStore screenshots, release keystore (Phase 9)
 
-## Expiry / stock policy (Phase 2)
-
-- Warning window default: 30 days (7/14/30/60/90 presets)
-- Low stock default: 5 (override per medicine)
-- `quantity < threshold` → low; `quantity == threshold` → in stock
-- Attention priority: expired → empty → expiring soon → low stock
-- One attention card per medicine
-
 ## Next checkpoint
 
-Phase 3 — medication schedules, intake tracking and history
+Codex Phase 3 review, then Phase 4 — native reminders
 
 ## Last verified commit SHA
 
-d1eff8ab5fb1439b50128c32f921c602e021b2f0
+(pending Phase 3 commit)

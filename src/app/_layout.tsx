@@ -95,6 +95,7 @@ export default function RootLayout () {
 						name="settings/stock-control"
 						options={{ headerShown: false }}
 					/>
+					<Stack.Screen name="courses/form" options={{ headerShown: false }} />
 				</Stack>
 				</DatabaseProvider>
 			</AppErrorBoundary>
