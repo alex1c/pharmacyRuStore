@@ -36,4 +36,4 @@ Phase 1 — medicine cabinets, medicines and batches (`medicine !== batch`)
 
 ## Last verified commit SHA
 
-_Pending — filled after Phase 0 commit._
+64ab1498dabb66387be128d2ab5c22bf89f20e71
