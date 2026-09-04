@@ -40,6 +40,11 @@ import { analytics } from '@/services/analytics'
 import { parseDoseInput } from '@/utils/dose'
 import { isDateOnly, isLocalTimeHm, toDateOnlyLocal } from '@/utils/dates'
 import { formatQuantity } from '@/utils/quantity'
+import {
+	ensureReminderPermissionInteractive,
+	getNotificationPermissionState,
+	safeSyncMedicationReminders,
+} from '@/services/notifications'
 
 type ScheduleMode = ScheduleType | 'prn'
 
@@ -75,6 +80,7 @@ export default function CourseFormScreen () {
 	const [endDate, setEndDate] = useState('')
 	const [noEndDate, setNoEndDate] = useState(true)
 	const [instructions, setInstructions] = useState('')
+	const [remindersEnabled, setRemindersEnabled] = useState(true)
 	const [saving, setSaving] = useState(false)
 	const [errors, setErrors] = useState<Record<string, string>>({})
 	const [loaded, setLoaded] = useState(!isEdit)
@@ -129,6 +135,7 @@ export default function CourseFormScreen () {
 						setEndDate('')
 					}
 					setInstructions(course.instructions ?? '')
+					setRemindersEnabled(course.remindersEnabled)
 					if (course.isPrn) {
 						setMode('prn')
 						setTimes([])
@@ -262,6 +269,7 @@ export default function CourseFormScreen () {
 		setSaving(true)
 		try {
 			const schedules = buildScheduleInputs()
+			const isPrn = mode === 'prn'
 			const coursePayload = {
 				personId,
 				doseQuantity: dose,
@@ -269,7 +277,8 @@ export default function CourseFormScreen () {
 				startDate,
 				endDate: noEndDate ? null : endDate,
 				instructions,
-				isPrn: mode === 'prn',
+				isPrn,
+				remindersEnabled: isPrn ? false : remindersEnabled,
 			}
 
 			if (isEdit && params.courseId) {
@@ -287,6 +296,11 @@ export default function CourseFormScreen () {
 					schedules,
 				})
 			}
+
+			await maybePromptReminderPermission(!isPrn && remindersEnabled)
+			await safeSyncMedicationReminders(executor, seed.household.id, {
+				defaultPersonName: seed.person.name,
+			})
 			router.back()
 		} catch (error) {
 			analytics.reportError(error, { source: 'CourseForm.save' })
@@ -298,6 +312,42 @@ export default function CourseFormScreen () {
 		} finally {
 			setSaving(false)
 		}
+	}
+
+	async function maybePromptReminderPermission (
+		wantsReminders: boolean,
+	): Promise<void> {
+		if (!wantsReminders) {
+			return
+		}
+		const state = await getNotificationPermissionState()
+		if (state.status === 'granted') {
+			return
+		}
+		if (state.status === 'denied' && !state.canAskAgain) {
+			return
+		}
+		await new Promise<void>((resolve) => {
+			Alert.alert(
+				'Разрешить напоминания?',
+				'Моя аптечка сможет напоминать о приёме лекарств по вашему расписанию.',
+				[
+					{
+						text: 'Не сейчас',
+						style: 'cancel',
+						onPress: () => resolve(),
+					},
+					{
+						text: 'Разрешить',
+						onPress: () => {
+							void ensureReminderPermissionInteractive().then(() =>
+								resolve(),
+							)
+						},
+					},
+				],
+			)
+		})
 	}
 
 	if (!loaded) {
@@ -513,6 +563,21 @@ export default function CourseFormScreen () {
 				onChangeText={setInstructions}
 				multiline
 			/>
+
+			{mode !== 'prn' ? (
+				<ChipGroup label="Напоминания">
+					<ChoiceChip
+						label="Напоминать"
+						selected={remindersEnabled}
+						onPress={() => setRemindersEnabled(true)}
+					/>
+					<ChoiceChip
+						label="Без напоминаний"
+						selected={!remindersEnabled}
+						onPress={() => setRemindersEnabled(false)}
+					/>
+				</ChipGroup>
+			) : null}
 
 			<PrimaryButton
 				label={saving ? 'Сохранение…' : 'Сохранить'}

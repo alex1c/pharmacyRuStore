@@ -42,6 +42,12 @@ export default function MoreScreen () {
 					showChevron
 					onPress={() => router.push('/settings/stock-control')}
 				/>
+				<ListRow
+					title="Напоминания"
+					subtitle="Уведомления о приёме"
+					showChevron
+					onPress={() => router.push('/settings/reminders')}
+				/>
 				{moreRows.map((row, index) => (
 					<ListRow
 						key={row.id}

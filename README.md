@@ -105,6 +105,8 @@ Inventory / intake flows (stack):
 
 **Schema v4:** `medication_courses`, `medication_schedules`, `intake_records`, `intake_inventory_movements`
 
+**Schema v5:** `scheduled_notifications`; `medication_courses.reminders_enabled`; `medication_reminders_enabled` setting
+
 ### Monitoring (Phase 2)
 
 - Effective expiry = earlier of package expiry and after-opening expiry
@@ -120,7 +122,13 @@ Inventory / intake flows (stack):
 - Taken → FEFO debit + movement ledger; skipped → no stock change; snooze → `snoozedUntil`
 - Shortfall: warn, allow partial consume, `inventoryShortfall`, never negative qty
 - Undo restores ledger quantities atomically
-- Native notifications **not** included (Phase 4)
+
+### Native reminders (Phase 4)
+
+- Local `expo-notifications` only (no Expo Push / FCM)
+- 30-day horizon; DB is source of truth; ledger maps occurrence → native ID
+- Settings → Напоминания; test notification (~10s); course «Напоминать» toggle
+- See [`docs/NOTIFICATION_ARCHITECTURE.md`](docs/NOTIFICATION_ARCHITECTURE.md)
 ## Git workflow
 
 - GitHub `main` is the source of truth
@@ -135,8 +143,8 @@ Inventory / intake flows (stack):
 | Phase 0 | Foundation |
 | Phase 1 | Аптечка / лекарства / партии |
 | Phase 2 | Сроки / остатки |
-| Phase 3 | Курсы и приём (**current**) |
-| Phase 4 | Native reminders |
+| Phase 3 | Курсы и приём |
+| Phase 4 | Native reminders (**current**) |
 | Phase 5 | Покупки и семья |
 | Phase 6 | Scanning |
 | Phase 7 | Backup / restore |

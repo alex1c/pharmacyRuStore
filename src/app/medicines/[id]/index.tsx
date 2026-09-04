@@ -48,6 +48,7 @@ import {
 	stockStatusLabel,
 } from '@/utils/statusCopy'
 import { formatQuantityWithUnit } from '@/utils/quantity'
+import { safeSyncMedicationReminders } from '@/services/notifications'
 
 interface BatchView extends MedicineBatch {
 	cabinetName: string
@@ -64,7 +65,7 @@ interface CourseView {
  */
 export default function MedicineDetailScreen () {
 	const { id } = useLocalSearchParams<{ id: string }>()
-	const { executor } = useDatabase()
+	const { executor, seed } = useDatabase()
 	const [summary, setSummary] = useState<MedicineSummary | null>(null)
 	const [batches, setBatches] = useState<BatchView[]>([])
 	const [courses, setCourses] = useState<CourseView[]>([])
@@ -132,6 +133,11 @@ export default function MedicineDetailScreen () {
 								return
 							}
 							await archiveMedicine(executor, id)
+							await safeSyncMedicationReminders(
+								executor,
+								seed.household.id,
+								{ defaultPersonName: seed.person.name },
+							)
 							router.replace('/(tabs)/cabinet')
 						})()
 					},

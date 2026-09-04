@@ -44,6 +44,7 @@ import { analytics } from '@/services/analytics'
 import { formatDateRu, formatInstantHm, historyDateLabel } from '@/utils/formatRu'
 import { formatQuantityWithUnit } from '@/utils/quantity'
 import { toDateOnlyLocal } from '@/utils/dates'
+import { safeSyncMedicationReminders } from '@/services/notifications'
 
 type Segment = 'courses' | 'history'
 
@@ -160,6 +161,11 @@ export default function IntakeScreen () {
 								courseId,
 								toDateOnlyLocal(new Date()),
 							)
+							await safeSyncMedicationReminders(
+								executor,
+								seed.household.id,
+								{ defaultPersonName: seed.person.name },
+							)
 							await loadCourses()
 						})()
 					},
@@ -177,6 +183,9 @@ export default function IntakeScreen () {
 			try {
 				const record = await takePrnDose(executor, item.course, {
 					allowShortfall,
+				})
+				await safeSyncMedicationReminders(executor, seed.household.id, {
+					defaultPersonName: seed.person.name,
 				})
 				Alert.alert(
 					'Отмечено',
@@ -289,6 +298,11 @@ export default function IntakeScreen () {
 					onPress: () => {
 						void (async () => {
 							await undoIntake(executor, item.intake.id)
+							await safeSyncMedicationReminders(
+								executor,
+								seed.household.id,
+								{ defaultPersonName: seed.person.name },
+							)
 							await loadHistory(false, null)
 						})()
 					},

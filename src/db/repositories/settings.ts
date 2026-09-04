@@ -4,11 +4,13 @@ import { SqlExecutor } from '@/db/sqlExecutor'
 export const SETTINGS_KEYS = {
 	expiryWarningDays: 'expiry_warning_days',
 	defaultLowStockThreshold: 'default_low_stock_threshold',
+	medicationRemindersEnabled: 'medication_reminders_enabled',
 } as const
 
 export const DEFAULT_SETTINGS: AppSettings = {
 	expiryWarningDays: 30,
 	defaultLowStockThreshold: 5,
+	medicationRemindersEnabled: true,
 }
 
 export const EXPIRY_WARNING_PRESETS = [7, 14, 30, 60, 90] as const
@@ -28,6 +30,13 @@ export async function ensureAppSettings (db: SqlExecutor): Promise<AppSettings> 
 			String(DEFAULT_SETTINGS.defaultLowStockThreshold),
 		],
 	)
+	await db.runAsync(
+		`INSERT OR IGNORE INTO app_meta (key, value) VALUES (?, ?)`,
+		[
+			SETTINGS_KEYS.medicationRemindersEnabled,
+			DEFAULT_SETTINGS.medicationRemindersEnabled ? '1' : '0',
+		],
+	)
 	return getAppSettings(db)
 }
 
@@ -42,10 +51,16 @@ export async function getAppSettings (db: SqlExecutor): Promise<AppSettings> {
 		SETTINGS_KEYS.defaultLowStockThreshold,
 		DEFAULT_SETTINGS.defaultLowStockThreshold,
 	)
+	const reminders = await getMetaFlag(
+		db,
+		SETTINGS_KEYS.medicationRemindersEnabled,
+		DEFAULT_SETTINGS.medicationRemindersEnabled,
+	)
 
 	return {
 		expiryWarningDays: expiry,
 		defaultLowStockThreshold: low,
+		medicationRemindersEnabled: reminders,
 	}
 }
 
@@ -73,6 +88,17 @@ export async function setDefaultLowStockThreshold (
 	)
 }
 
+export async function setMedicationRemindersEnabled (
+	db: SqlExecutor,
+	enabled: boolean,
+): Promise<void> {
+	await upsertMeta(
+		db,
+		SETTINGS_KEYS.medicationRemindersEnabled,
+		enabled ? '1' : '0',
+	)
+}
+
 async function getMetaNumber (
 	db: SqlExecutor,
 	key: string,
@@ -84,6 +110,21 @@ async function getMetaNumber (
 	)
 	const parsed = Number(row?.value)
 	return Number.isFinite(parsed) ? parsed : fallback
+}
+
+async function getMetaFlag (
+	db: SqlExecutor,
+	key: string,
+	fallback: boolean,
+): Promise<boolean> {
+	const row = await db.getFirstAsync<{ value: string }>(
+		`SELECT value FROM app_meta WHERE key = ?`,
+		[key],
+	)
+	if (!row) {
+		return fallback
+	}
+	return row.value === '1' || row.value === 'true'
 }
 
 async function upsertMeta (

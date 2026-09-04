@@ -17,6 +17,7 @@ interface CourseRow {
 	end_date: string | null
 	instructions: string | null
 	is_prn: number
+	reminders_enabled: number
 	created_at: string
 	updated_at: string
 	archived_at: string | null
@@ -34,6 +35,7 @@ function mapRow (row: CourseRow): MedicationCourse {
 		endDate: row.end_date,
 		instructions: row.instructions,
 		isPrn: row.is_prn === 1,
+		remindersEnabled: row.reminders_enabled !== 0,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
 		archivedAt: row.archived_at,
@@ -42,7 +44,8 @@ function mapRow (row: CourseRow): MedicationCourse {
 
 const SELECT_COLS = `
 	id, household_id, person_id, medicine_id, dose_quantity, dose_unit,
-	start_date, end_date, instructions, is_prn, created_at, updated_at, archived_at
+	start_date, end_date, instructions, is_prn, reminders_enabled,
+	created_at, updated_at, archived_at
 `
 
 export interface CourseInput {
@@ -55,6 +58,7 @@ export interface CourseInput {
 	endDate?: string | null
 	instructions?: string | null
 	isPrn: boolean
+	remindersEnabled?: boolean
 }
 
 /**
@@ -67,6 +71,9 @@ export async function createCourse (
 	await assertCourseInput(db, input)
 
 	const timestamp = nowIso()
+	const remindersEnabled = input.isPrn
+		? false
+		: (input.remindersEnabled ?? true)
 	const course: MedicationCourse = {
 		id: createId('course'),
 		householdId: input.householdId,
@@ -78,6 +85,7 @@ export async function createCourse (
 		endDate: input.endDate ?? null,
 		instructions: emptyToNull(input.instructions),
 		isPrn: input.isPrn,
+		remindersEnabled,
 		createdAt: timestamp,
 		updatedAt: timestamp,
 		archivedAt: null,
@@ -86,8 +94,9 @@ export async function createCourse (
 	await db.runAsync(
 		`INSERT INTO medication_courses
 			(id, household_id, person_id, medicine_id, dose_quantity, dose_unit,
-			 start_date, end_date, instructions, is_prn, created_at, updated_at, archived_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+			 start_date, end_date, instructions, is_prn, reminders_enabled,
+			 created_at, updated_at, archived_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
 		[
 			course.id,
 			course.householdId,
@@ -99,6 +108,7 @@ export async function createCourse (
 			course.endDate,
 			course.instructions,
 			course.isPrn ? 1 : 0,
+			course.remindersEnabled ? 1 : 0,
 			course.createdAt,
 			course.updatedAt,
 		],
@@ -182,14 +192,20 @@ export async function updateCourse (
 		endDate: input.endDate,
 		instructions: input.instructions,
 		isPrn: input.isPrn,
+		remindersEnabled: input.remindersEnabled,
 	}
 	await assertCourseInput(db, nextInput)
+
+	const remindersEnabled = nextInput.isPrn
+		? false
+		: (nextInput.remindersEnabled ?? existing.remindersEnabled)
 
 	const updatedAt = nowIso()
 	await db.runAsync(
 		`UPDATE medication_courses
 		 SET person_id = ?, dose_quantity = ?, dose_unit = ?,
-			 start_date = ?, end_date = ?, instructions = ?, is_prn = ?, updated_at = ?
+			 start_date = ?, end_date = ?, instructions = ?, is_prn = ?,
+			 reminders_enabled = ?, updated_at = ?
 		 WHERE id = ?`,
 		[
 			nextInput.personId,
@@ -199,6 +215,7 @@ export async function updateCourse (
 			nextInput.endDate ?? null,
 			emptyToNull(nextInput.instructions),
 			nextInput.isPrn ? 1 : 0,
+			remindersEnabled ? 1 : 0,
 			updatedAt,
 			id,
 		],

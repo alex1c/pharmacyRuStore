@@ -150,6 +150,8 @@ export interface MedicineSummary {
 export interface AppSettings {
 	expiryWarningDays: number
 	defaultLowStockThreshold: number
+	/** Global ON/OFF for medication native reminders. */
+	medicationRemindersEnabled: boolean
 }
 
 export interface AppMeta {
@@ -183,6 +185,8 @@ export interface MedicationCourse {
 	endDate: string | null
 	instructions: string | null
 	isPrn: boolean
+	/** User intent to receive native reminders (ignored for PRN). */
+	remindersEnabled: boolean
 	createdAt: string
 	updatedAt: string
 	archivedAt: string | null
@@ -239,4 +243,20 @@ export interface ScheduledOccurrence {
 	scheduledTime: string
 	doseQuantity: number
 	doseUnit: MedicineUnit
+}
+
+/**
+ * Ledger row mapping a scheduled occurrence to a native notification ID.
+ */
+export interface ScheduledNotification {
+	id: string
+	occurrenceKey: string
+	courseId: string
+	scheduleId: string
+	scheduledDate: string
+	scheduledTime: string
+	nativeNotificationId: string
+	triggerAt: string
+	createdAt: string
+	updatedAt: string
 }

@@ -35,6 +35,7 @@ import { analytics } from '@/services/analytics'
 import { formatInstantHm } from '@/utils/formatRu'
 import { formatQuantityWithUnit } from '@/utils/quantity'
 import { toDateOnlyLocal } from '@/utils/dates'
+import { safeSyncMedicationReminders } from '@/services/notifications'
 
 /**
  * «Сегодня» — scheduled intake for today + inventory attention.
@@ -66,7 +67,10 @@ export default function TodayScreen () {
 		setBatchCount(batches)
 		setAttentionItems(summaries)
 		setOccurrences(todayViews)
-	}, [executor, seed.household.id])
+		void safeSyncMedicationReminders(executor, seed.household.id, {
+			defaultPersonName: seed.person.name,
+		})
+	}, [executor, seed.household.id, seed.person.name])
 
 	useFocusEffect(
 		useCallback(() => {

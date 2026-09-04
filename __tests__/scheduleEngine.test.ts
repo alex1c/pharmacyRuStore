@@ -18,6 +18,7 @@ function makeCourse (
 		endDate: null,
 		instructions: null,
 		isPrn: false,
+		remindersEnabled: true,
 		createdAt: 'a',
 		updatedAt: 'a',
 		archivedAt: null,
