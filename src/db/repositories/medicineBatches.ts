@@ -175,7 +175,7 @@ export async function updateBatch (
 		notes: input.notes,
 	}
 
-	await validateBatchInput(db, nextInput)
+	await validateBatchInput(db, nextInput, id)
 
 	const updatedAt = nowIso()
 	const next: MedicineBatch = {
@@ -236,9 +236,60 @@ export async function archiveBatch (
 	)
 }
 
+/**
+ * Returns the unit used by active packs, if any.
+ */
+export async function getActiveUnitForMedicine (
+	db: SqlExecutor,
+	medicineId: string,
+): Promise<MedicineUnit | null> {
+	const row = await db.getFirstAsync<{ unit: string }>(
+		`SELECT unit FROM medicine_batches
+		 WHERE medicine_id = ? AND archived_at IS NULL
+		 ORDER BY created_at ASC
+		 LIMIT 1`,
+		[medicineId],
+	)
+	return row ? (row.unit as MedicineUnit) : null
+}
+
+/**
+ * Prefill hints for «Пополнить» from the latest active pack.
+ */
+export async function getLatestActiveBatchPrefill (
+	db: SqlExecutor,
+	medicineId: string,
+): Promise<{
+	cabinetId: string
+	storageLocationId: string | null
+	unit: MedicineUnit
+} | null> {
+	const row = await db.getFirstAsync<{
+		cabinet_id: string
+		storage_location_id: string | null
+		unit: string
+	}>(
+		`SELECT cabinet_id, storage_location_id, unit
+		 FROM medicine_batches
+		 WHERE medicine_id = ? AND archived_at IS NULL
+		 ORDER BY created_at DESC
+		 LIMIT 1`,
+		[medicineId],
+	)
+	if (!row) {
+		return null
+	}
+	return {
+		cabinetId: row.cabinet_id,
+		storageLocationId: row.storage_location_id,
+		unit: row.unit as MedicineUnit,
+	}
+}
+
 async function validateBatchInput (
 	db: SqlExecutor,
 	input: BatchInput,
+	excludeBatchId: string | null = null,
 ): Promise<void> {
 	const medicine = await db.getFirstAsync<{
 		id: string
@@ -257,6 +308,8 @@ async function validateBatchInput (
 		input.storageLocationId,
 		input.cabinetId,
 	)
+
+	await assertCompatibleUnit(db, input.medicineId, input.unit, excludeBatchId)
 
 	if (input.expiryDate) {
 		const precision = getExpiryPrecision(input.expiryDate)
@@ -278,6 +331,33 @@ async function validateBatchInput (
 			!input.afterOpeningUnit
 		) {
 			throw new Error('INVALID_AFTER_OPENING')
+		}
+	}
+}
+
+/**
+ * Blocks saving a pack unit that conflicts with other active packs.
+ */
+async function assertCompatibleUnit (
+	db: SqlExecutor,
+	medicineId: string,
+	unit: MedicineUnit,
+	excludeBatchId: string | null,
+): Promise<void> {
+	const rows = await db.getAllAsync<{ id: string; unit: string }>(
+		excludeBatchId
+			? `SELECT id, unit FROM medicine_batches
+				 WHERE medicine_id = ? AND archived_at IS NULL AND id != ?`
+			: `SELECT id, unit FROM medicine_batches
+				 WHERE medicine_id = ? AND archived_at IS NULL`,
+		excludeBatchId ? [medicineId, excludeBatchId] : [medicineId],
+	)
+
+	for (const row of rows) {
+		if (row.unit !== unit) {
+			const error = new Error('INCOMPATIBLE_UNIT')
+			error.name = 'INCOMPATIBLE_UNIT'
+			throw error
 		}
 	}
 }

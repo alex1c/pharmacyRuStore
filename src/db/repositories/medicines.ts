@@ -1,15 +1,22 @@
-import { aggregateMedicineBatches } from '@/domain/medicineSummary'
+import {
+	compareAttentionPriority,
+	getMedicineInventorySummary,
+} from '@/domain/medicineSummary'
+import { aggregateMedicineBatches } from '@/domain/legacyAggregate'
 import { nowIso } from '@/utils/dates'
 import { createId } from '@/utils/id'
 import { SqlExecutor } from '../sqlExecutor'
 import {
+	AfterOpeningUnit,
 	Medicine,
+	MedicineBatch,
 	MedicineForm,
 	MedicineSummary,
 	MedicineUnit,
 } from '../types'
 import { listBatchesForMedicine } from './medicineBatches'
 import { getCabinetById } from './medicineCabinets'
+import { getAppSettings } from './settings'
 
 interface MedicineRow {
 	id: string
@@ -19,6 +26,7 @@ interface MedicineRow {
 	strength_text: string | null
 	notes: string | null
 	photo_uri: string | null
+	low_stock_threshold: number | null
 	created_at: string
 	updated_at: string
 	archived_at: string | null
@@ -33,6 +41,10 @@ function mapRow (row: MedicineRow): Medicine {
 		strengthText: row.strength_text,
 		notes: row.notes,
 		photoUri: row.photo_uri,
+		lowStockThreshold:
+			row.low_stock_threshold === null || row.low_stock_threshold === undefined
+				? null
+				: Number(row.low_stock_threshold),
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
 		archivedAt: row.archived_at ?? null,
@@ -41,16 +53,27 @@ function mapRow (row: MedicineRow): Medicine {
 
 const SELECT_COLS = `
 	id, household_id, name, form, strength_text, notes, photo_uri,
-	created_at, updated_at, archived_at
+	low_stock_threshold, created_at, updated_at, archived_at
 `
 
-export type MedicineSort = 'name' | 'nearestExpiry' | 'createdAt'
+export type MedicineSort =
+	| 'name'
+	| 'nearestExpiry'
+	| 'createdAt'
+	| 'attention'
+
+export type MedicineAttentionFilter =
+	| 'all'
+	| 'attention'
+	| 'expired'
+	| 'expiring'
 
 export interface ListMedicinesOptions {
 	householdId: string
 	cabinetId?: string | null
 	query?: string
 	sort?: MedicineSort
+	attentionFilter?: MedicineAttentionFilter
 }
 
 export async function getMedicineById (
@@ -73,6 +96,7 @@ export async function createMedicine (
 		strengthText?: string | null
 		notes?: string | null
 		photoUri?: string | null
+		lowStockThreshold?: number | null
 	},
 ): Promise<Medicine> {
 	const name = input.name.trim()
@@ -89,6 +113,7 @@ export async function createMedicine (
 		strengthText: emptyToNull(input.strengthText),
 		notes: emptyToNull(input.notes),
 		photoUri: input.photoUri ?? null,
+		lowStockThreshold: normalizeThreshold(input.lowStockThreshold),
 		createdAt: timestamp,
 		updatedAt: timestamp,
 		archivedAt: null,
@@ -97,8 +122,8 @@ export async function createMedicine (
 	await db.runAsync(
 		`INSERT INTO medicines
 			(id, household_id, name, form, strength_text, notes, photo_uri,
-			 created_at, updated_at, archived_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+			 low_stock_threshold, created_at, updated_at, archived_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
 		[
 			medicine.id,
 			medicine.householdId,
@@ -107,6 +132,7 @@ export async function createMedicine (
 			medicine.strengthText,
 			medicine.notes,
 			medicine.photoUri,
+			medicine.lowStockThreshold,
 			medicine.createdAt,
 			medicine.updatedAt,
 		],
@@ -124,6 +150,7 @@ export async function updateMedicine (
 		strengthText?: string | null
 		notes?: string | null
 		photoUri?: string | null
+		lowStockThreshold?: number | null
 	},
 ): Promise<Medicine> {
 	const existing = await getMedicineById(db, id)
@@ -145,13 +172,17 @@ export async function updateMedicine (
 		notes: emptyToNull(input.notes),
 		photoUri:
 			input.photoUri === undefined ? existing.photoUri : input.photoUri,
+		lowStockThreshold:
+			input.lowStockThreshold === undefined
+				? existing.lowStockThreshold
+				: normalizeThreshold(input.lowStockThreshold),
 		updatedAt,
 	}
 
 	await db.runAsync(
 		`UPDATE medicines
 		 SET name = ?, form = ?, strength_text = ?, notes = ?, photo_uri = ?,
-			 updated_at = ?
+			 low_stock_threshold = ?, updated_at = ?
 		 WHERE id = ?`,
 		[
 			next.name,
@@ -159,6 +190,7 @@ export async function updateMedicine (
 			next.strengthText,
 			next.notes,
 			next.photoUri,
+			next.lowStockThreshold,
 			next.updatedAt,
 			id,
 		],
@@ -208,20 +240,19 @@ export async function getMedicineSummary (
 		return null
 	}
 
+	const settings = await getAppSettings(db)
 	const batches = await listBatchesForMedicine(db, medicineId)
 	const stock = aggregateMedicineBatches(batches)
 	const primaryCabinet = stock.primaryCabinetId
 		? await getCabinetById(db, stock.primaryCabinetId)
 		: null
 
-	return {
+	return getMedicineInventorySummary({
 		medicine,
-		totalQuantity: stock.totalQuantity,
-		unit: stock.unit,
-		nearestExpiry: stock.nearestExpiry,
-		activeBatchCount: stock.activeBatchCount,
+		batches,
+		settings,
 		primaryCabinetName: primaryCabinet?.name ?? null,
-	}
+	})
 }
 
 export async function listMedicineSummaries (
@@ -229,16 +260,91 @@ export async function listMedicineSummaries (
 	options: ListMedicinesOptions,
 ): Promise<MedicineSummary[]> {
 	const medicines = await listMedicines(db, options)
-	const summaries: MedicineSummary[] = []
+	if (medicines.length === 0) {
+		return []
+	}
 
-	for (const medicine of medicines) {
-		const summary = await getMedicineSummary(db, medicine.id)
-		if (summary) {
-			summaries.push(summary)
+	const settings = await getAppSettings(db)
+	const ids = medicines.map((item) => item.id)
+	const placeholders = ids.map(() => '?').join(', ')
+	const batchRows = await db.getAllAsync<{
+		id: string
+		medicine_id: string
+		cabinet_id: string
+		storage_location_id: string | null
+		quantity: number
+		unit: string
+		expiry_date: string | null
+		opened_at: string | null
+		after_opening_value: number | null
+		after_opening_unit: string | null
+		purchase_date: string | null
+		notes: string | null
+		created_at: string
+		updated_at: string
+		archived_at: string | null
+	}>(
+		`SELECT id, medicine_id, cabinet_id, storage_location_id, quantity, unit,
+			expiry_date, opened_at, after_opening_value, after_opening_unit,
+			purchase_date, notes, created_at, updated_at, archived_at
+		 FROM medicine_batches
+		 WHERE medicine_id IN (${placeholders}) AND archived_at IS NULL`,
+		ids,
+	)
+
+	const batchesByMedicine = new Map<string, typeof batchRows>()
+	for (const row of batchRows) {
+		const list = batchesByMedicine.get(row.medicine_id) ?? []
+		list.push(row)
+		batchesByMedicine.set(row.medicine_id, list)
+	}
+
+	const cabinetIds = [
+		...new Set(batchRows.map((row) => row.cabinet_id)),
+	]
+	const cabinetNames = new Map<string, string>()
+	for (const cabinetId of cabinetIds) {
+		const cabinet = await getCabinetById(db, cabinetId)
+		if (cabinet) {
+			cabinetNames.set(cabinetId, cabinet.name)
 		}
 	}
 
-	return sortSummaries(summaries, options.sort ?? 'name')
+	const summaries: MedicineSummary[] = medicines.map((medicine) => {
+		const rows = batchesByMedicine.get(medicine.id) ?? []
+		const batches: MedicineBatch[] = rows.map((row) => ({
+			id: row.id,
+			medicineId: row.medicine_id,
+			cabinetId: row.cabinet_id,
+			storageLocationId: row.storage_location_id,
+			quantity: row.quantity,
+			unit: row.unit as MedicineUnit,
+			expiryDate: row.expiry_date,
+			openedAt: row.opened_at,
+			afterOpeningValue: row.after_opening_value,
+			afterOpeningUnit: row.after_opening_unit as AfterOpeningUnit | null,
+			purchaseDate: row.purchase_date,
+			notes: row.notes,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at,
+			archivedAt: row.archived_at,
+		}))
+
+		const stock = aggregateMedicineBatches(batches)
+		const primaryCabinetName = stock.primaryCabinetId
+			? cabinetNames.get(stock.primaryCabinetId) ?? null
+			: null
+
+		return getMedicineInventorySummary({
+			medicine,
+			batches,
+			settings,
+			primaryCabinetName,
+		})
+	})
+
+	const filtered = filterByAttention(summaries, options.attentionFilter ?? 'all')
+	return sortSummaries(filtered, options.sort ?? 'name')
 }
 
 export async function listMedicines (
@@ -248,7 +354,8 @@ export async function listMedicines (
 	const params: (string | number | null)[] = []
 	let sql = `
 		SELECT DISTINCT m.id, m.household_id, m.name, m.form, m.strength_text,
-			m.notes, m.photo_uri, m.created_at, m.updated_at, m.archived_at
+			m.notes, m.photo_uri, m.low_stock_threshold, m.created_at, m.updated_at,
+			m.archived_at
 		FROM medicines m
 	`
 
@@ -269,7 +376,6 @@ export async function listMedicines (
 	const rows = await db.getAllAsync<MedicineRow>(sql, params)
 	const medicines = rows.map(mapRow)
 
-	// SQLite NOCASE is ASCII-only — filter Russian text in JS.
 	const query = options.query?.trim()
 	if (!query) {
 		return medicines
@@ -316,6 +422,22 @@ export async function countActiveBatches (
 	return row?.count ?? 0
 }
 
+function filterByAttention (
+	summaries: MedicineSummary[],
+	filter: MedicineAttentionFilter,
+): MedicineSummary[] {
+	if (filter === 'all') {
+		return summaries
+	}
+	if (filter === 'attention') {
+		return summaries.filter((item) => item.attentionKind !== null)
+	}
+	if (filter === 'expired') {
+		return summaries.filter((item) => item.attentionKind === 'expired')
+	}
+	return summaries.filter((item) => item.attentionKind === 'expiring_soon')
+}
+
 function sortSummaries (
 	summaries: MedicineSummary[],
 	sort: MedicineSort,
@@ -327,21 +449,38 @@ function sortSummaries (
 		)
 		return copy
 	}
+	if (sort === 'attention') {
+		copy.sort((a, b) => {
+			const byKind = compareAttentionPriority(a.attentionKind, b.attentionKind)
+			if (byKind !== 0) {
+				return byKind
+			}
+			const aDate = a.nearestEffectiveExpiry
+			const bDate = b.nearestEffectiveExpiry
+			if (aDate && bDate && aDate !== bDate) {
+				return aDate < bDate ? -1 : 1
+			}
+			return a.medicine.name.localeCompare(b.medicine.name, 'ru')
+		})
+		return copy
+	}
 	if (sort === 'nearestExpiry') {
 		copy.sort((a, b) => {
-			if (!a.nearestExpiry && !b.nearestExpiry) {
+			const aDate = a.nearestEffectiveExpiry ?? a.nearestExpiry
+			const bDate = b.nearestEffectiveExpiry ?? b.nearestExpiry
+			if (!aDate && !bDate) {
 				return a.medicine.name.localeCompare(b.medicine.name, 'ru')
 			}
-			if (!a.nearestExpiry) {
+			if (!aDate) {
 				return 1
 			}
-			if (!b.nearestExpiry) {
+			if (!bDate) {
 				return -1
 			}
-			if (a.nearestExpiry === b.nearestExpiry) {
+			if (aDate === bDate) {
 				return a.medicine.name.localeCompare(b.medicine.name, 'ru')
 			}
-			return a.nearestExpiry < b.nearestExpiry ? -1 : 1
+			return aDate < bDate ? -1 : 1
 		})
 		return copy
 	}
@@ -356,6 +495,18 @@ function emptyToNull (value: string | null | undefined): string | null {
 	}
 	const trimmed = value.trim()
 	return trimmed.length === 0 ? null : trimmed
+}
+
+function normalizeThreshold (
+	value: number | null | undefined,
+): number | null {
+	if (value === null || value === undefined) {
+		return null
+	}
+	if (!Number.isFinite(value) || value < 0) {
+		throw new Error('INVALID_LOW_STOCK_THRESHOLD')
+	}
+	return value
 }
 
 export type { MedicineUnit }

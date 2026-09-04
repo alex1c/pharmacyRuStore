@@ -93,6 +93,16 @@ Inventory flows (stack):
 
 **Schema v2:** `storage_locations`, `medicines`, `medicine_batches` (+ `archived_at` on cabinets)
 
+**Schema v3:** `medicines.low_stock_threshold`; settings keys `expiry_warning_days`, `default_low_stock_threshold`
+
+### Monitoring (Phase 2)
+
+- Effective expiry = earlier of package expiry and after-opening expiry
+- `YYYY-MM` stays valid through the last local calendar day of that month
+- Stock: empty (0), low (`quantity < threshold`), in stock (including equal threshold)
+- Today «Требует внимания» with priority: expired → empty → expiring soon → low stock
+- Settings: Ещё → Контроль запасов
+
 ## Git workflow
 
 - GitHub `main` is the source of truth
@@ -105,8 +115,8 @@ Inventory flows (stack):
 | Phase | Focus |
 | --- | --- |
 | Phase 0 | Foundation |
-| Phase 1 | Аптечка / лекарства / партии (**current**) |
-| Phase 2 | Сроки / остатки |
+| Phase 1 | Аптечка / лекарства / партии |
+| Phase 2 | Сроки / остатки (**current**) |
 | Phase 3 | Курсы и приём |
 | Phase 4 | Native reminders |
 | Phase 5 | Покупки и семья |

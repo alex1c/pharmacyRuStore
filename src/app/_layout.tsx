@@ -91,6 +91,10 @@ export default function RootLayout () {
 						name="medicines/[id]/batches/[batchId]"
 						options={{ headerShown: false }}
 					/>
+					<Stack.Screen
+						name="settings/stock-control"
+						options={{ headerShown: false }}
+					/>
 				</Stack>
 				</DatabaseProvider>
 			</AppErrorBoundary>

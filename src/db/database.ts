@@ -27,6 +27,8 @@ export async function initializeDatabase (): Promise<InitializedDatabase> {
 	`)
 
 	const schemaVersion = await applyMigrations(executor)
+	const { ensureAppSettings } = await import('./repositories/settings')
+	await ensureAppSettings(executor)
 	const seed = await ensureFirstRunDefaults(executor)
 
 	return { db, executor, schemaVersion, seed }

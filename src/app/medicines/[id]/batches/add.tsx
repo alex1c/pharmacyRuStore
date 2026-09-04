@@ -13,7 +13,7 @@ import {
 import { AFTER_OPENING_UNITS, MEDICINE_UNITS } from '@/constants/medicineUnits'
 import { spacing } from '@/constants/theme'
 import { useDatabase } from '@/context/DatabaseContext'
-import { createBatch } from '@/db/repositories/medicineBatches'
+import { createBatch, getLatestActiveBatchPrefill } from '@/db/repositories/medicineBatches'
 import { listCabinetsByHousehold } from '@/db/repositories/medicineCabinets'
 import { getMedicineById } from '@/db/repositories/medicines'
 import { listLocationsByCabinet } from '@/db/repositories/storageLocations'
@@ -62,18 +62,27 @@ export default function AddBatchScreen () {
 				router.back()
 				return
 			}
-			if (medicine.form === 'tablet') {
-				setUnit('tablet')
-			} else if (medicine.form === 'capsule') {
-				setUnit('capsule')
-			}
 			const nextCabinets = await listCabinetsByHousehold(
 				executor,
 				seed.household.id,
 			)
 			setCabinets(nextCabinets)
-			if (nextCabinets[0]) {
-				setCabinetId(nextCabinets[0].id)
+
+			const prefill = await getLatestActiveBatchPrefill(executor, id)
+			if (prefill) {
+				setCabinetId(prefill.cabinetId)
+				setUnit(prefill.unit)
+				// Location is applied after locations for this cabinet load.
+				setLocationId(prefill.storageLocationId)
+			} else {
+				if (medicine.form === 'tablet') {
+					setUnit('tablet')
+				} else if (medicine.form === 'capsule') {
+					setUnit('capsule')
+				}
+				if (nextCabinets[0]) {
+					setCabinetId(nextCabinets[0].id)
+				}
 			}
 		})()
 	}, [executor, id, seed.household.id])
@@ -85,7 +94,12 @@ export default function AddBatchScreen () {
 		void (async () => {
 			const next = await listLocationsByCabinet(executor, cabinetId)
 			setLocations(next)
-			setLocationId(null)
+			setLocationId((current) => {
+				if (!current) {
+					return null
+				}
+				return next.some((item) => item.id === current) ? current : null
+			})
 		})()
 	}, [cabinetId, executor])
 
@@ -151,7 +165,9 @@ export default function AddBatchScreen () {
 			const message =
 				error instanceof Error && error.name === 'LOCATION_CABINET_MISMATCH'
 					? 'Место хранения должно относиться к выбранной аптечке.'
-					: 'Не удалось сохранить упаковку.'
+					: error instanceof Error && error.name === 'INCOMPATIBLE_UNIT'
+						? 'Единица должна совпадать с другими активными упаковками этого лекарства.'
+						: 'Не удалось сохранить упаковку.'
 			Alert.alert('Ошибка', message)
 		} finally {
 			setSaving(false)

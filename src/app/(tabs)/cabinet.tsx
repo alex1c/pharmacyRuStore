@@ -26,26 +26,27 @@ import { getMedicineFormLabel } from '@/constants/medicineForms'
 import { getMedicineUnitShortLabel } from '@/constants/medicineUnits'
 import { colors, radii, spacing, typography } from '@/constants/theme'
 import { useDatabase } from '@/context/DatabaseContext'
-import {
-	listCabinetsByHousehold,
-} from '@/db/repositories/medicineCabinets'
+import { listCabinetsByHousehold } from '@/db/repositories/medicineCabinets'
 import {
 	listMedicineSummaries,
+	MedicineAttentionFilter,
 	MedicineSort,
 } from '@/db/repositories/medicines'
 import { MedicineCabinet, MedicineSummary } from '@/db/types'
 import { analytics } from '@/services/analytics'
-import { formatNearestExpiryLabel } from '@/utils/expiry'
+import { medicineListStatusLine } from '@/utils/statusCopy'
 import { formatQuantityWithUnit } from '@/utils/quantity'
 
 /**
- * Main inventory tab — searchable list of medicines with cabinet filter.
+ * Main inventory tab with attention-aware statuses.
  */
 export default function CabinetScreen () {
 	const { executor, seed } = useDatabase()
 	const [query, setQuery] = useState('')
 	const [cabinetId, setCabinetId] = useState<string | null>(null)
 	const [sort, setSort] = useState<MedicineSort>('name')
+	const [attentionFilter, setAttentionFilter] =
+		useState<MedicineAttentionFilter>('all')
 	const [cabinets, setCabinets] = useState<MedicineCabinet[]>([])
 	const [items, setItems] = useState<MedicineSummary[]>([])
 	const [loading, setLoading] = useState(true)
@@ -62,6 +63,7 @@ export default function CabinetScreen () {
 				cabinetId,
 				query,
 				sort,
+				attentionFilter,
 			})
 			setCabinets(nextCabinets)
 			setItems(summaries)
@@ -71,7 +73,7 @@ export default function CabinetScreen () {
 		} finally {
 			setLoading(false)
 		}
-	}, [cabinetId, executor, query, seed.household.id, sort])
+	}, [attentionFilter, cabinetId, executor, query, seed.household.id, sort])
 
 	useFocusEffect(
 		useCallback(() => {
@@ -80,8 +82,11 @@ export default function CabinetScreen () {
 		}, [load]),
 	)
 
-	const isEmptyInventory = !loading && items.length === 0 && !query && !cabinetId
+	const isEmptyInventory =
+		!loading && items.length === 0 && !query && !cabinetId && attentionFilter === 'all'
 	const isEmptySearch = !loading && items.length === 0 && Boolean(query)
+	const isEmptyFilter =
+		!loading && items.length === 0 && !isEmptyInventory && !isEmptySearch
 
 	return (
 		<Screen>
@@ -126,6 +131,29 @@ export default function CabinetScreen () {
 				))}
 			</ScrollView>
 
+			<ChipGroup label="Фильтр">
+				<ChoiceChip
+					label="Все"
+					selected={attentionFilter === 'all'}
+					onPress={() => setAttentionFilter('all')}
+				/>
+				<ChoiceChip
+					label="Требуют внимания"
+					selected={attentionFilter === 'attention'}
+					onPress={() => setAttentionFilter('attention')}
+				/>
+				<ChoiceChip
+					label="Просроченные"
+					selected={attentionFilter === 'expired'}
+					onPress={() => setAttentionFilter('expired')}
+				/>
+				<ChoiceChip
+					label="Заканчиваются"
+					selected={attentionFilter === 'expiring'}
+					onPress={() => setAttentionFilter('expiring')}
+				/>
+			</ChipGroup>
+
 			<ChipGroup label="Сортировка">
 				<ChoiceChip
 					label="По названию"
@@ -136,6 +164,11 @@ export default function CabinetScreen () {
 					label="По сроку"
 					selected={sort === 'nearestExpiry'}
 					onPress={() => setSort('nearestExpiry')}
+				/>
+				<ChoiceChip
+					label="Сначала требующие внимания"
+					selected={sort === 'attention'}
+					onPress={() => setSort('attention')}
 				/>
 				<ChoiceChip
 					label="По дате добавления"
@@ -151,12 +184,14 @@ export default function CabinetScreen () {
 					icon="medkit-outline"
 				/>
 			) : null}
-
 			{isEmptySearch ? (
 				<EmptyState title="Ничего не найдено" icon="search-outline" />
 			) : null}
+			{isEmptyFilter ? (
+				<EmptyState title="Нет подходящих лекарств" icon="filter-outline" />
+			) : null}
 
-			{!isEmptyInventory && !isEmptySearch ? (
+			{!isEmptyInventory && !isEmptySearch && !isEmptyFilter ? (
 				<ScrollView
 					style={styles.list}
 					contentContainerStyle={styles.listContent}
@@ -180,18 +215,33 @@ export default function CabinetScreen () {
 function MedicineListCard ({ item }: { item: MedicineSummary }) {
 	const unitLabel = item.unit ? getMedicineUnitShortLabel(item.unit) : ''
 	const quantityLabel = formatQuantityWithUnit(item.totalQuantity, unitLabel)
-	const expiryLabel = formatNearestExpiryLabel(item.nearestExpiry)
 	const formLabel = getMedicineFormLabel(item.medicine.form)
 	const meta = [item.medicine.strengthText, formLabel.toLowerCase()]
 		.filter(Boolean)
 		.join(' · ')
+	const statusLine = medicineListStatusLine(item)
+	const tone =
+		item.expiryStatus === 'expired' || item.stockStatus === 'empty'
+			? 'danger'
+			: item.expiryStatus === 'expiring_soon' || item.stockStatus === 'low'
+				? 'warning'
+				: 'normal'
 
 	return (
 		<Pressable
 			onPress={() => router.push(`/medicines/${item.medicine.id}`)}
 			style={({ pressed }) => [styles.cardPress, pressed && styles.cardPressed]}
 		>
-			<Card style={styles.card}>
+			<Card
+				style={[
+					styles.card,
+					tone === 'danger'
+						? styles.cardDanger
+						: tone === 'warning'
+							? styles.cardWarn
+							: null,
+				]}
+			>
 				<View style={styles.cardRow}>
 					{item.medicine.photoUri ? (
 						<Image
@@ -207,8 +257,17 @@ function MedicineListCard ({ item }: { item: MedicineSummary }) {
 						<Text style={styles.cardTitle}>{item.medicine.name}</Text>
 						{meta ? <Text style={styles.cardMeta}>{meta}</Text> : null}
 						<Text style={styles.cardQty}>{quantityLabel}</Text>
-						{expiryLabel ? (
-							<Text style={styles.cardExpiry}>{expiryLabel}</Text>
+						{statusLine ? (
+							<Text
+								style={[
+									styles.cardStatus,
+									tone === 'danger'
+										? styles.statusDanger
+										: styles.statusWarn,
+								]}
+							>
+								{statusLine}
+							</Text>
 						) : null}
 						{item.primaryCabinetName ? (
 							<Text style={styles.cardCabinet}>{item.primaryCabinetName}</Text>
@@ -253,6 +312,14 @@ const styles = StyleSheet.create({
 	card: {
 		padding: spacing.md,
 	},
+	cardDanger: {
+		borderColor: '#E8C4C4',
+		backgroundColor: '#FFF8F8',
+	},
+	cardWarn: {
+		borderColor: '#E8D9A8',
+		backgroundColor: '#FFFCF3',
+	},
 	cardRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
@@ -291,9 +358,15 @@ const styles = StyleSheet.create({
 		color: colors.text,
 		marginTop: 4,
 	},
-	cardExpiry: {
+	cardStatus: {
 		...typography.bodySmall,
-		color: colors.textSecondary,
+		fontWeight: '600',
+	},
+	statusDanger: {
+		color: colors.danger,
+	},
+	statusWarn: {
+		color: '#8A6A0A',
 	},
 	cardCabinet: {
 		...typography.caption,

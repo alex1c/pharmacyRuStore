@@ -2,7 +2,7 @@
 
 ## Current phase
 
-**Phase 1 — Аптечки / лекарства / партии** (complete)
+**Phase 2 — Сроки / остатки / «Требует внимания»** (complete)
 
 ## Completed
 
@@ -10,23 +10,25 @@
 - Expo SDK 57 foundation, tabs, design system, SQLite migrations, seed, abstractions
 
 ### Phase 1
-- Schema v2: `storage_locations`, `medicines`, `medicine_batches`
-- Cabinet / location CRUD with safe archive
-- Medicine + pack (batch) CRUD; `medicine ≠ batch`
-- Inventory list: search, cabinet filter, sort, summaries
-- Quantity aggregation + nearest expiry
-- Gallery photo copy into app storage
-- Russian decimal input / quantity formatting
-- Expiry as `YYYY-MM` or `YYYY-MM-DD` (no timezone shift)
+- Schema v2 inventory: cabinets, locations, medicines, batches
+- Medicine ≠ batch; search/filter/CRUD; photos
+
+### Phase 2
+- Schema v3: `medicines.low_stock_threshold`, settings in `app_meta`
+- Effective expiry (package vs after-opening), YYYY-MM → last day of month
+- Stock status: empty / low / in_stock (equal threshold = in_stock)
+- Shared inventory summary + attention priority
+- Today attention dashboard; inventory status/filter/sort
+- Stock control settings; per-medicine low-stock override
+- Compatible unit policy for active packs
 
 ## Known issues
 
-- Archived medicine photos are not deleted from disk yet (deferred cleanup)
-- Expiry / stock warnings dashboard not implemented (Phase 2)
+- Archived medicine photos are not deleted from disk yet
+- Full shopping list not implemented (Phase 5)
 
 ## Deferred
 
-- Expiry & stock warnings (Phase 2)
 - Courses / intake confirmation (Phase 3)
 - Native reminders (Phase 4)
 - Shopping list & family management (Phase 5)
@@ -35,10 +37,18 @@
 - AppMetrica + РСЯ production SDKs (Phase 8)
 - Final icon, RuStore screenshots, release keystore (Phase 9)
 
+## Expiry / stock policy (Phase 2)
+
+- Warning window default: 30 days (7/14/30/60/90 presets)
+- Low stock default: 5 (override per medicine)
+- `quantity < threshold` → low; `quantity == threshold` → in stock
+- Attention priority: expired → empty → expiring soon → low stock
+- One attention card per medicine
+
 ## Next checkpoint
 
-Phase 2 — expiry, stock warnings and attention dashboard
+Phase 3 — medication schedules, intake tracking and history
 
 ## Last verified commit SHA
 
-c7556278d3b6e87d1f8609e15c2f8a358e60d209
+_Pending — filled after Phase 2 commit._

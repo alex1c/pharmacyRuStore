@@ -18,9 +18,11 @@ import {
 	getMedicineById,
 	updateMedicine,
 } from '@/db/repositories/medicines'
+import { getAppSettings } from '@/db/repositories/settings'
 import { MedicineForm } from '@/db/types'
 import { pickAndStoreMedicinePhoto } from '@/services/medicineMedia'
 import { analytics } from '@/services/analytics'
+import { parseQuantityInput } from '@/utils/quantity'
 
 export default function EditMedicineScreen () {
 	const { id } = useLocalSearchParams<{ id: string }>()
@@ -30,7 +32,10 @@ export default function EditMedicineScreen () {
 	const [strengthText, setStrengthText] = useState('')
 	const [notes, setNotes] = useState('')
 	const [photoUri, setPhotoUri] = useState<string | null>(null)
+	const [lowStockText, setLowStockText] = useState('')
+	const [defaultLowStock, setDefaultLowStock] = useState(5)
 	const [nameError, setNameError] = useState<string | null>(null)
+	const [thresholdError, setThresholdError] = useState<string | null>(null)
 	const [saving, setSaving] = useState(false)
 
 	useEffect(() => {
@@ -39,6 +44,8 @@ export default function EditMedicineScreen () {
 			return
 		}
 		void (async () => {
+			const settings = await getAppSettings(executor)
+			setDefaultLowStock(settings.defaultLowStockThreshold)
 			const medicine = await getMedicineById(executor, id)
 			if (!medicine || medicine.archivedAt) {
 				Alert.alert('Не найдено', 'Лекарство недоступно.')
@@ -50,6 +57,11 @@ export default function EditMedicineScreen () {
 			setStrengthText(medicine.strengthText ?? '')
 			setNotes(medicine.notes ?? '')
 			setPhotoUri(medicine.photoUri)
+			setLowStockText(
+				medicine.lowStockThreshold === null
+					? ''
+					: String(medicine.lowStockThreshold),
+			)
 		})()
 	}, [executor, id])
 
@@ -62,6 +74,18 @@ export default function EditMedicineScreen () {
 			return
 		}
 		setNameError(null)
+
+		let lowStockThreshold: number | null = null
+		if (lowStockText.trim()) {
+			const parsed = parseQuantityInput(lowStockText)
+			if (parsed === null) {
+				setThresholdError('Укажите корректное число')
+				return
+			}
+			lowStockThreshold = parsed
+		}
+		setThresholdError(null)
+
 		setSaving(true)
 		try {
 			await updateMedicine(executor, id, {
@@ -70,6 +94,7 @@ export default function EditMedicineScreen () {
 				strengthText,
 				notes,
 				photoUri,
+				lowStockThreshold,
 			})
 			router.back()
 		} catch (error) {
@@ -109,6 +134,15 @@ export default function EditMedicineScreen () {
 				value={notes}
 				onChangeText={setNotes}
 				multiline
+			/>
+			<TextField
+				label="Предупреждать, если осталось меньше"
+				value={lowStockText}
+				onChangeText={setLowStockText}
+				placeholder={`По умолчанию: ${defaultLowStock}`}
+				keyboardType="decimal-pad"
+				hint="Оставьте пустым, чтобы использовать общий порог"
+				error={thresholdError}
 			/>
 			<View style={styles.photoBlock}>
 				{photoUri ? (
