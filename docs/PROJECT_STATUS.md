@@ -74,4 +74,4 @@ Codex Phase 3 review, then Phase 4 — native reminders
 
 ## Last verified commit SHA
 
-(pending Phase 3 commit)
+1dc66c657606e409da3c86450df31b909398ca0c
