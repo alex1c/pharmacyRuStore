@@ -2,26 +2,31 @@
 
 ## Current phase
 
-**Phase 0 — Foundation**
+**Phase 1 — Аптечки / лекарства / партии** (complete)
 
 ## Completed
 
-- Expo SDK 57 app scaffold (`Моя аптечка`, package `com.calculatorplatform.pharmacy`)
-- Five-tab Russian UI with design tokens and reusable components
-- SQLite + migration system + first-run seed (`Я`, `Дом`, household)
-- Controlled startup with DB error fallback
-- Analytics / ads / logging abstractions (no production keys)
-- Privacy draft + date/time strategy docs
-- Jest / ESLint / TypeScript / Expo Doctor scripts
+### Phase 0
+- Expo SDK 57 foundation, tabs, design system, SQLite migrations, seed, abstractions
+
+### Phase 1
+- Schema v2: `storage_locations`, `medicines`, `medicine_batches`
+- Cabinet / location CRUD with safe archive
+- Medicine + pack (batch) CRUD; `medicine ≠ batch`
+- Inventory list: search, cabinet filter, sort, summaries
+- Quantity aggregation + nearest expiry
+- Gallery photo copy into app storage
+- Russian decimal input / quantity formatting
+- Expiry as `YYYY-MM` or `YYYY-MM-DD` (no timezone shift)
 
 ## Known issues
 
-- None blocking Phase 0 at last verification
+- Archived medicine photos are not deleted from disk yet (deferred cleanup)
+- Expiry / stock warnings dashboard not implemented (Phase 2)
 
 ## Deferred
 
-- Medicine / batch CRUD (Phase 1)
-- Expiry & stock logic (Phase 2)
+- Expiry & stock warnings (Phase 2)
 - Courses / intake confirmation (Phase 3)
 - Native reminders (Phase 4)
 - Shopping list & family management (Phase 5)
@@ -32,8 +37,8 @@
 
 ## Next checkpoint
 
-Phase 1 — medicine cabinets, medicines and batches (`medicine !== batch`)
+Phase 2 — expiry, stock warnings and attention dashboard
 
 ## Last verified commit SHA
 
-64ab1498dabb66387be128d2ab5c22bf89f20e71
+_Pending — filled after Phase 1 commit._

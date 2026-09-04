@@ -56,6 +56,7 @@ export async function ensureFirstRunDefaults (
 		name: defaultSeed.cabinetName,
 		createdAt: timestamp,
 		updatedAt: timestamp,
+		archivedAt: null,
 	}
 
 	const writeSeed = async () => {
@@ -198,6 +199,7 @@ function mapCabinet (row: {
 	name: string
 	created_at: string
 	updated_at: string
+	archived_at?: string | null
 }): MedicineCabinet {
 	return {
 		id: row.id,
@@ -205,5 +207,6 @@ function mapCabinet (row: {
 		name: row.name,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
+		archivedAt: row.archived_at ?? null,
 	}
 }

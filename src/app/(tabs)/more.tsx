@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { StyleSheet, Text } from 'react-native'
+import { router } from 'expo-router'
 
 import {
 	AppHeader,
@@ -13,7 +14,7 @@ import { colors, typography } from '@/constants/theme'
 import { analytics } from '@/services/analytics'
 
 /**
- * «Ещё» — future settings, family, backup, about.
+ * «Ещё» — settings entry points and disclaimer.
  */
 export default function MoreScreen () {
 	useEffect(() => {
@@ -29,16 +30,19 @@ export default function MoreScreen () {
 
 			<SectionHeader title="Разделы" />
 			<Card style={styles.listCard}>
+				<ListRow
+					title="Аптечки и места хранения"
+					subtitle="Управление"
+					showChevron
+					onPress={() => router.push('/cabinets')}
+				/>
 				{moreRows.map((row, index) => (
 					<ListRow
 						key={row.id}
 						title={row.title}
 						subtitle={row.subtitle}
 						disabled
-						style={[
-							styles.row,
-							index === moreRows.length - 1 ? styles.rowLast : null,
-						]}
+						style={index === moreRows.length - 1 ? styles.rowLast : null}
 					/>
 				))}
 			</Card>
@@ -55,10 +59,6 @@ const styles = StyleSheet.create({
 	listCard: {
 		padding: 0,
 		overflow: 'hidden',
-	},
-	row: {
-		borderBottomWidth: StyleSheet.hairlineWidth,
-		borderBottomColor: colors.border,
 	},
 	rowLast: {
 		borderBottomWidth: 0,

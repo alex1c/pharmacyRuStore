@@ -68,8 +68,30 @@ export default function RootLayout () {
 				<DatabaseProvider value={bootstrap.database}>
 					<StatusBar style="dark" />
 					<Stack screenOptions={{ headerShown: false }}>
-						<Stack.Screen name="(tabs)" />
-					</Stack>
+					<Stack.Screen name="(tabs)" />
+					<Stack.Screen name="cabinets/index" options={{ headerShown: false }} />
+					<Stack.Screen
+						name="cabinets/[cabinetId]/locations"
+						options={{ headerShown: false }}
+					/>
+					<Stack.Screen name="medicines/add" options={{ headerShown: false }} />
+					<Stack.Screen
+						name="medicines/[id]/index"
+						options={{ headerShown: false }}
+					/>
+					<Stack.Screen
+						name="medicines/[id]/edit"
+						options={{ headerShown: false }}
+					/>
+					<Stack.Screen
+						name="medicines/[id]/batches/add"
+						options={{ headerShown: false }}
+					/>
+					<Stack.Screen
+						name="medicines/[id]/batches/[batchId]"
+						options={{ headerShown: false }}
+					/>
+				</Stack>
 				</DatabaseProvider>
 			</AppErrorBoundary>
 		</SafeAreaProvider>

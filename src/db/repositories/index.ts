@@ -1,3 +1,7 @@
 export * as householdsRepository from './households'
 export * as peopleRepository from './people'
 export * as medicineCabinetsRepository from './medicineCabinets'
+export * as storageLocationsRepository from './storageLocations'
+export * as medicinesRepository from './medicines'
+export * as medicineBatchesRepository from './medicineBatches'
+export * as inventoryRepository from './inventory'

@@ -30,6 +30,12 @@
       "expo-sqlite",
       "expo-dev-client",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Приложению нужен доступ к фото, чтобы сохранить изображение лекарства."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#E8F6F3",

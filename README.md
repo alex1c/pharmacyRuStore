@@ -40,16 +40,25 @@ npm run check
 
 ```
 src/
-  app/                 # Expo Router screens (5 tabs)
+  app/                 # Expo Router screens (tabs + inventory flows)
   components/ui/       # Reusable UI primitives
-  constants/           # Design tokens + Russian copy
+  constants/           # Design tokens, forms, units, copy
   context/             # Database provider
   db/                  # SQLite, migrations, repositories
+  domain/              # Aggregation helpers (medicine ≠ batch)
   hooks/               # Bootstrap / feature hooks
-  services/            # Analytics + ads abstractions
-  utils/               # Dates, locale decimals, ids
+  services/            # Analytics, ads, medicine media
+  utils/               # Dates, expiry, locale decimals, quantity
 docs/                  # Privacy, date strategy, project status
 ```
+
+### Domain rule
+
+**Medicine ≠ MedicineBatch (упаковка).**
+
+- `Medicine` — логический препарат (`Нурофен 200 мг`)
+- `MedicineBatch` — конкретная упаковка с `quantity` и `expiryDate`
+- Несколько упаковок могут принадлежать одному лекарству
 
 ### Startup flow
 
@@ -68,6 +77,11 @@ docs/                  # Privacy, date strategy, project status
 4. Покупки
 5. Ещё
 
+Inventory flows (stack):
+
+- `/medicines/add`, `/medicines/[id]`, edit, packs
+- `/cabinets`, `/cabinets/[cabinetId]/locations`
+
 ### Database migrations
 
 - Migrations live in `src/db/migrations/`
@@ -75,9 +89,9 @@ docs/                  # Privacy, date strategy, project status
 - Apply via `applyMigrations()` during bootstrap
 - Never edit already-shipped migration SQL — append a new version
 
-Phase 0 tables: `households`, `people`, `medicine_cabinets`, `app_meta`, `schema_migrations`
+**Schema v1:** `households`, `people`, `medicine_cabinets`, `app_meta`, `schema_migrations`
 
-Critical domain rule for later phases: **medicine ≠ package/batch**.
+**Schema v2:** `storage_locations`, `medicines`, `medicine_batches` (+ `archived_at` on cabinets)
 
 ## Git workflow
 
@@ -90,8 +104,8 @@ Critical domain rule for later phases: **medicine ≠ package/batch**.
 
 | Phase | Focus |
 | --- | --- |
-| Phase 0 | Foundation (current) |
-| Phase 1 | Аптечка / лекарства / партии |
+| Phase 0 | Foundation |
+| Phase 1 | Аптечка / лекарства / партии (**current**) |
 | Phase 2 | Сроки / остатки |
 | Phase 3 | Курсы и приём |
 | Phase 4 | Native reminders |
@@ -104,5 +118,3 @@ Critical domain rule for later phases: **medicine ≠ package/batch**.
 ## Current status
 
 See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
-
-Phase 0 delivers the production-oriented foundation only — no full medicine CRUD yet.
