@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { AppState } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import { router } from 'expo-router'
 
@@ -90,6 +91,29 @@ export function useAppBootstrap (): BootstrapState {
 			cancelled = true
 		}
 	}, [attempt])
+
+	// Permissions and wall-clock settings can change while Android settings are
+	// covering the app. Reconcile as soon as the app becomes active again so a
+	// permission granted later takes effect without recreating a course.
+	useEffect(() => {
+		if (!database) {
+			return
+		}
+
+		const subscription = AppState.addEventListener('change', (nextState) => {
+			if (nextState === 'active') {
+				void safeSyncMedicationReminders(
+					database.executor,
+					database.seed.household.id,
+					{ defaultPersonName: database.seed.person.name },
+				)
+			}
+		})
+
+		return () => {
+			subscription.remove()
+		}
+	}, [database])
 
 	// Tap on medication reminder → Today (safe fallback).
 	useEffect(() => {
