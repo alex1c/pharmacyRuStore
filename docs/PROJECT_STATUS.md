@@ -41,4 +41,4 @@ Phase 2 — expiry, stock warnings and attention dashboard
 
 ## Last verified commit SHA
 
-_Pending — filled after Phase 1 commit._
+c7556278d3b6e87d1f8609e15c2f8a358e60d209
