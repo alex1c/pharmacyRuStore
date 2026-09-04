@@ -76,6 +76,13 @@ describe('schedule engine — daily', () => {
 			}),
 		).toHaveLength(0)
 	})
+
+	it('includes both start and end dates', () => {
+		const bounded = makeCourse({ startDate: '2026-09-01', endDate: '2026-09-03' })
+		for (const dateOnly of ['2026-09-01', '2026-09-03']) {
+			expect(getOccurrencesForDate({ courses: [bounded], schedules: [schedule], dateOnly })).toHaveLength(1)
+		}
+	})
 })
 
 describe('schedule engine — weekdays', () => {
@@ -186,6 +193,12 @@ describe('schedule engine — every N days', () => {
 				dateOnly: '2027-01-01',
 			}),
 		).toHaveLength(0)
+	})
+
+	it('handles leap day from the course start', () => {
+		const leapCourse = makeCourse({ startDate: '2028-02-28' })
+		expect(getOccurrencesForDate({ courses: [leapCourse], schedules: [schedule], dateOnly: '2028-03-01' })).toHaveLength(1)
+		expect(getOccurrencesForDate({ courses: [leapCourse], schedules: [schedule], dateOnly: '2028-02-29' })).toHaveLength(0)
 	})
 })
 

@@ -12,6 +12,7 @@ import { countHouseholds } from '@/db/repositories/households'
 import { countPeople } from '@/db/repositories/people'
 import { defaultSeed } from '@/constants/copy'
 import { createTestSqlExecutor } from './helpers/testDatabase'
+import { migrations } from '@/db/migrations'
 
 describe('database foundation', () => {
 	it('applies migrations to the latest schema version', async () => {
@@ -19,6 +20,48 @@ describe('database foundation', () => {
 		const version = await applyMigrations(db)
 		expect(version).toBe(getLatestSchemaVersion())
 		expect(await getSchemaVersion(db)).toBe(4)
+	})
+
+	it('upgrades a populated v3 database to v4 without data loss and is repeatable', async () => {
+		const db = createTestSqlExecutor()
+		for (const migration of migrations.slice(0, 3)) {
+			await db.execAsync(migration.sql)
+			await db.runAsync(
+				'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)',
+				[migration.version, '2026-09-04T00:00:00.000Z'],
+			)
+		}
+		await db.runAsync(
+			`INSERT INTO households (id, name, created_at, updated_at)
+			 VALUES ('legacy-hh', 'Legacy', 'a', 'a')`,
+		)
+
+		expect(await applyMigrations(db)).toBe(4)
+		expect(await applyMigrations(db)).toBe(4)
+		expect(
+			await db.getFirstAsync<{ name: string }>(
+				`SELECT name FROM households WHERE id = 'legacy-hh'`,
+			),
+		).toEqual({ name: 'Legacy' })
+		for (const table of [
+			'medication_courses',
+			'medication_schedules',
+			'intake_records',
+			'intake_inventory_movements',
+		]) {
+			expect(
+				await db.getFirstAsync(
+					`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`,
+					[table],
+				),
+			).not.toBeNull()
+		}
+		const uniqueIndex = await db.getFirstAsync<{ sql: string }>(
+			`SELECT sql FROM sqlite_master
+			 WHERE type = 'index' AND name = 'idx_intake_occurrence_unique'`,
+		)
+		expect(uniqueIndex?.sql).toContain('CREATE UNIQUE INDEX')
+		expect(uniqueIndex?.sql).toContain("status IN ('taken', 'skipped', 'snoozed')")
 	})
 
 	it('seeds default household, person and cabinet once', async () => {

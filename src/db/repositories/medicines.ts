@@ -210,6 +210,14 @@ export async function archiveMedicine (
 
 	const timestamp = nowIso()
 	const run = async () => {
+		// Stop future occurrences while retaining courses, schedules, intakes and
+		// movements as immutable historical references.
+		await db.runAsync(
+			`UPDATE medication_courses
+			 SET archived_at = ?, updated_at = ?
+			 WHERE medicine_id = ? AND archived_at IS NULL`,
+			[timestamp, timestamp, id],
+		)
 		await db.runAsync(
 			`UPDATE medicine_batches
 			 SET archived_at = ?, updated_at = ?

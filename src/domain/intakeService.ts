@@ -122,6 +122,17 @@ async function restoreConsumption (
 	}
 }
 
+function assertCompatibleInventoryUnit (
+	batches: Awaited<ReturnType<typeof listBatchesForMedicine>>,
+	doseUnit: ScheduledOccurrence['doseUnit'],
+): void {
+	if (batches.some((batch) => batch.unit !== doseUnit)) {
+		const error = new Error('INCOMPATIBLE_UNIT')
+		error.name = 'INCOMPATIBLE_UNIT'
+		throw error
+	}
+}
+
 function resolveOccurrenceStatus (
 	intake: IntakeRecord | null,
 	now: Date,
@@ -283,6 +294,7 @@ export async function markOccurrenceTaken (
 		}
 
 		const batches = await listBatchesForMedicine(db, occurrence.medicineId)
+		assertCompatibleInventoryUnit(batches, occurrence.doseUnit)
 		const plan = planFefoConsumption(batches, doseQuantity, occurrence.doseUnit)
 
 		if (plan.shortfall > 0 && !options.allowShortfall) {
@@ -429,6 +441,7 @@ export async function takePrnDose (
 		}
 
 		const batches = await listBatchesForMedicine(db, course.medicineId)
+		assertCompatibleInventoryUnit(batches, course.doseUnit)
 		const plan = planFefoConsumption(batches, doseQuantity, course.doseUnit)
 
 		if (plan.shortfall > 0 && !options.allowShortfall) {

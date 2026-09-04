@@ -359,7 +359,8 @@ export async function listHistoryIntakes (
 			 AND i.cancelled_at IS NULL
 			 ${statusClause}
 			 ${beforeClause}
-		 ORDER BY COALESCE(i.actual_taken_at, i.skipped_at, i.created_at) DESC
+		 ORDER BY COALESCE(i.actual_taken_at, i.skipped_at, i.created_at) DESC,
+			i.id DESC
 		 LIMIT ?`,
 		params,
 	)

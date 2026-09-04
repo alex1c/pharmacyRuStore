@@ -3,6 +3,7 @@ import {
 	markOccurrenceSkipped,
 	markOccurrenceTaken,
 	snoozeOccurrence,
+	takeAllOccurrences,
 	takePrnDose,
 	undoIntake,
 } from '@/domain/intakeService'
@@ -10,7 +11,7 @@ import { createCourseWithSchedules } from '@/domain/courseService'
 import { applyMigrations, getLatestSchemaVersion } from '@/db/migrations/applyMigrations'
 import { ensureFirstRunDefaults } from '@/db/seed'
 import { createBatch, getBatchById } from '@/db/repositories/medicineBatches'
-import { createMedicine } from '@/db/repositories/medicines'
+import { archiveMedicine, createMedicine } from '@/db/repositories/medicines'
 import {
 	findActiveOccurrenceIntake,
 	listMovementsForIntake,
@@ -215,6 +216,39 @@ describe('intake service', () => {
 		)
 	})
 
+	it('enforces occurrence uniqueness in SQLite and permits a new action after undo', async () => {
+		const ctx = await setup()
+		const first = await markOccurrenceTaken(ctx.db, ctx.occurrence)
+		await expect(ctx.db.runAsync(
+			`INSERT INTO intake_records
+			 (id, course_id, schedule_id, medicine_id, person_id, scheduled_date,
+			  scheduled_time, status, dose_quantity, dose_unit, inventory_shortfall,
+			  created_at, updated_at)
+			 VALUES ('duplicate', ?, ?, ?, ?, ?, ?, 'skipped', 1, 'tablet', 0, 'b', 'b')`,
+			[ctx.course.id, ctx.occurrence.scheduleId, ctx.medicine.id, ctx.seed.person.id,
+				ctx.occurrence.scheduledDate, ctx.occurrence.scheduledTime],
+		)).rejects.toThrow(/UNIQUE constraint failed/)
+		await undoIntake(ctx.db, first.id)
+		const replacement = await markOccurrenceSkipped(ctx.db, ctx.occurrence)
+		expect(replacement.id).not.toBe(first.id)
+	})
+
+	it('supports all snooze durations, transitions to taken, and restores pending on undo', async () => {
+		const ctx = await setup()
+		const now = new Date('2026-09-04T05:00:00.000Z')
+		for (const minutes of [10, 30, 60] as const) {
+			const snoozed = await snoozeOccurrence(ctx.db, ctx.occurrence, minutes, { now })
+			expect(snoozed.scheduledDate).toBe(ctx.occurrence.scheduledDate)
+			expect(snoozed.scheduledTime).toBe(ctx.occurrence.scheduledTime)
+			expect(snoozed.snoozedUntil).toBe(new Date(now.getTime() + minutes * 60_000).toISOString())
+		}
+		const taken = await markOccurrenceTaken(ctx.db, ctx.occurrence, { now })
+		expect(taken.status).toBe('taken')
+		expect(await findActiveOccurrenceIntake(ctx.db, ctx.occurrence.scheduleId, ctx.occurrence.scheduledDate, ctx.occurrence.scheduledTime)).toMatchObject({ id: taken.id })
+		await undoIntake(ctx.db, taken.id)
+		expect(await findActiveOccurrenceIntake(ctx.db, ctx.occurrence.scheduleId, ctx.occurrence.scheduledDate, ctx.occurrence.scheduledTime)).toBeNull()
+	})
+
 	it('FEFO multi-pack consume and undo', async () => {
 		const ctx = await setup()
 		await ctx.db.runAsync(
@@ -275,6 +309,45 @@ describe('intake service', () => {
 
 		await undoIntake(ctx.db, record.id)
 		expect((await getBatchById(ctx.db, ctx.packA.id))?.quantity).toBe(1)
+		await undoIntake(ctx.db, record.id)
+		expect((await getBatchById(ctx.db, ctx.packA.id))?.quantity).toBe(1)
+	})
+
+	it('uses after-opening effective expiry in the real transaction path', async () => {
+		const ctx = await setup()
+		await ctx.db.runAsync(
+			`UPDATE medicine_batches SET expiry_date = '2028-12', opened_at = '2026-09-01',
+			 after_opening_value = 30, after_opening_unit = 'days' WHERE id = ?`,
+			[ctx.packA.id],
+		)
+		await ctx.db.runAsync(`UPDATE medicine_batches SET expiry_date = '2027-01' WHERE id = ?`, [ctx.packB.id])
+		const record = await markOccurrenceTaken(ctx.db, ctx.occurrence)
+		expect((await listMovementsForIntake(ctx.db, record.id))[0]?.batchId).toBe(ctx.packA.id)
+	})
+
+	it('rejects an incompatible inventory unit before recording or consuming', async () => {
+		const ctx = await setup()
+		await ctx.db.runAsync(`UPDATE medicine_batches SET unit = 'ml' WHERE medicine_id = ?`, [ctx.medicine.id])
+		await expect(markOccurrenceTaken(ctx.db, ctx.occurrence, { allowShortfall: true })).rejects.toMatchObject({ name: 'INCOMPATIBLE_UNIT' })
+		expect(await findActiveOccurrenceIntake(ctx.db, ctx.occurrence.scheduleId, ctx.occurrence.scheduledDate, ctx.occurrence.scheduledTime)).toBeNull()
+		expect((await getBatchById(ctx.db, ctx.packA.id))?.quantity).toBe(3)
+	})
+
+	it('rolls back intake, stock, and movements when movement insertion fails', async () => {
+		const ctx = await setup()
+		const originalRun = ctx.db.runAsync.bind(ctx.db)
+		const failingDb = {
+			...ctx.db,
+			runAsync: async (sql: string, params: Parameters<typeof originalRun>[1] = []) => {
+				if (sql.includes('INSERT INTO intake_inventory_movements')) throw new Error('INJECTED_MOVEMENT_FAILURE')
+				return originalRun(sql, params)
+			},
+		}
+		await expect(markOccurrenceTaken(failingDb, ctx.occurrence)).rejects.toThrow('INJECTED_MOVEMENT_FAILURE')
+		expect((await getBatchById(ctx.db, ctx.packA.id))?.quantity).toBe(3)
+		expect(await findActiveOccurrenceIntake(ctx.db, ctx.occurrence.scheduleId, ctx.occurrence.scheduledDate, ctx.occurrence.scheduledTime)).toBeNull()
+		const count = await ctx.db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM intake_inventory_movements')
+		expect(count?.count).toBe(0)
 	})
 
 	it('PRN intake consumes inventory and undo restores', async () => {
@@ -312,6 +385,28 @@ describe('intake service', () => {
 
 		const active = await listActiveCourses(ctx.db, ctx.seed.household.id)
 		expect(active.find((item) => item.id === ctx.course.id)).toBeUndefined()
+	})
+
+	it('medicine archive stops future occurrences but preserves intake and movements', async () => {
+		const ctx = await setup()
+		const record = await markOccurrenceTaken(ctx.db, ctx.occurrence)
+		await archiveMedicine(ctx.db, ctx.medicine.id)
+		expect(await listActiveCourses(ctx.db, ctx.seed.household.id)).toHaveLength(0)
+		const history = await listHistoryIntakes(ctx.db, ctx.seed.household.id, { statusFilter: 'taken', limit: 20 })
+		expect(history.some((item) => item.id === record.id)).toBe(true)
+		expect(await listMovementsForIntake(ctx.db, record.id)).toHaveLength(1)
+	})
+
+	it('take all has stable partial success and retry does not consume twice', async () => {
+		const ctx = await setup()
+		const eveningSchedule = (await listSchedulesForCourse(ctx.db, ctx.course.id)).find((item) => item.timeOfDay === '20:00')!
+		const evening = { ...ctx.occurrence, scheduleId: eveningSchedule.id, scheduledTime: '20:00' }
+		const first = await takeAllOccurrences(ctx.db, [ctx.occurrence, evening])
+		expect(first.taken).toHaveLength(2)
+		expect((await getBatchById(ctx.db, ctx.packA.id))?.quantity).toBe(1)
+		const retry = await takeAllOccurrences(ctx.db, [ctx.occurrence, evening])
+		expect(retry.taken.map((item) => item.id)).toEqual(first.taken.map((item) => item.id))
+		expect((await getBatchById(ctx.db, ctx.packA.id))?.quantity).toBe(1)
 	})
 
 	it('filters history by status', async () => {

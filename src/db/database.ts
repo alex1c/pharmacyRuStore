@@ -45,7 +45,11 @@ export async function deleteDatabaseForTests (): Promise<void> {
 export function createExpoSqlExecutor (
 	db: SQLite.SQLiteDatabase,
 ): SqlExecutor {
-	return {
+	// Expo's regular async transaction is not exclusive. Serialize all transaction
+	// entry points on this connection so two UI actions cannot interleave their
+	// read/plan/write sequences (notably medication intake double-taps).
+	let transactionTail: Promise<void> = Promise.resolve()
+	const executor: SqlExecutor = {
 		execAsync: (source) => db.execAsync(source),
 		runAsync: async (source, params = []) => {
 			const result = await db.runAsync(source, params)
@@ -59,14 +63,19 @@ export function createExpoSqlExecutor (
 		getAllAsync: <T>(source: string, params: SqlParams = []) =>
 			db.getAllAsync<T>(source, params),
 		// Expo's withTransactionAsync returns Promise<void>; capture task result manually.
-		withTransactionAsync: async <T>(task: () => Promise<T>): Promise<T> => {
-			let result!: T
-			await db.withTransactionAsync(async () => {
-				result = await task()
+		withTransactionAsync: <T>(task: () => Promise<T>): Promise<T> => {
+			const transaction = transactionTail.then(async () => {
+				let result!: T
+				await db.withTransactionAsync(async () => {
+					result = await task()
+				})
+				return result
 			})
-			return result
+			transactionTail = transaction.then(() => undefined, () => undefined)
+			return transaction
 		},
 	}
+	return executor
 }
 
 export { getSchemaVersion }
