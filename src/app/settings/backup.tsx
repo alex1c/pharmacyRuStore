@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import { Alert, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from 'expo-router'
-import * as Notifications from 'expo-notifications'
 
 import {
 	PrimaryButton,
@@ -32,7 +31,11 @@ import {
 	writeTempCsv,
 } from '@/services/backup/fileIo'
 import { analytics } from '@/services/analytics'
-import { safeSyncMedicationReminders } from '@/services/notifications'
+import {
+	getNotificationClient,
+	safeSyncMedicationReminders,
+} from '@/services/notifications'
+import { listScheduledNotifications } from '@/db/repositories/scheduledNotifications'
 import { formatDateRu } from '@/utils/formatRu'
 
 /**
@@ -122,15 +125,21 @@ export default function BackupScreen () {
 				return
 			}
 			const bytes = await readFileBytesFromUri(uri)
+			const oldMedicationReminderIds = (await listScheduledNotifications(executor))
+				.map((entry) => entry.nativeNotificationId)
 			await restoreFromBackupZipBytes(executor, bytes, {
 				writeMediaFile: writeMedicinePhotoFromBackup,
 				afterCommit: async () => {
-					// Drop stale native reminders; ledger was cleared with user tables.
-					try {
-						await Notifications.cancelAllScheduledNotificationsAsync()
-					} catch {
-						// Permission denied must not block restore.
-					}
+					// Drop only reminders owned by the app. Other local notifications
+					// must survive a restore.
+					const client = getNotificationClient()
+					await Promise.all(oldMedicationReminderIds.map(async (id) => {
+						try {
+							await client.cancelReminder(id)
+						} catch {
+							// A stale or unavailable native reminder must not block restore.
+						}
+					}))
 					const refreshed = await refreshSeed()
 					await safeSyncAutomaticShoppingItems(
 						executor,

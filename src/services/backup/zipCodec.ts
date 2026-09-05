@@ -58,25 +58,30 @@ export async function decodeBackupZip (bytes: Uint8Array): Promise<BackupPackage
 	validateManifest(manifestRaw)
 
 	const media: BackupPackage['media'] = []
-	const mediaFolder = zip.folder('media')
-	if (mediaFolder) {
-		const files = Object.keys(zip.files).filter(
-			(path) => path.startsWith('media/medicine/') && !path.endsWith('/'),
-		)
-		for (const path of files) {
-			assertSafeMediaZipPath(path)
-			const entry = zip.file(path)
-			if (!entry) {
-				continue
-			}
-			const bytes = await entry.async('uint8array')
-			const name = path.slice('media/medicine/'.length)
-			media.push({
-				zipPath: path,
-				logicalRef: `media://medicine/${name}`,
-				bytes,
-			})
+	for (const [path, zipEntry] of Object.entries(zip.files)) {
+		if (
+			zipEntry.dir ||
+			path === 'manifest.json' ||
+			path === 'data.json' ||
+			path === 'media/' ||
+			path === 'media/medicine/'
+		) {
+			continue
 		}
+		// Every non-core ZIP entry must be a safe medicine media file. Ignoring
+		// unexpected entries would let a malicious archive evade path validation.
+		assertSafeMediaZipPath(path)
+		const entry = zip.file(path)
+		if (!entry) {
+			continue
+		}
+		const bytes = await entry.async('uint8array')
+		const name = path.slice('media/medicine/'.length)
+		media.push({
+			zipPath: path,
+			logicalRef: `media://medicine/${name}`,
+			bytes,
+		})
 	}
 
 	const pack: BackupPackage = migrateBackupFormat({

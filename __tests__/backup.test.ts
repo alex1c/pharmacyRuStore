@@ -1,4 +1,5 @@
 import { TextEncoder } from 'util'
+import JSZip from 'jszip'
 
 import { applyMigrations, getLatestSchemaVersion } from '@/db/migrations/applyMigrations'
 import { ensureFirstRunDefaults } from '@/db/seed'
@@ -338,6 +339,31 @@ describe('backup / restore / export', () => {
 		)
 		expect(after?.c).toBe(before?.c)
 	})
+
+	it.each(['../evil', '/absolute/path', 'media/medicine/../evil'])(
+		'rejects unsafe ZIP entry %s before mutating DB',
+		async (unsafePath) => {
+			const { db, mediaMap } = await buildRichDb()
+			const { pack } = await createBackupPackage(db, {
+				readMediaBytes: async (uri) => mediaMap.get(uri) ?? null,
+			})
+			const zip = new JSZip()
+			zip.file('manifest.json', JSON.stringify(pack.manifest))
+			zip.file('data.json', JSON.stringify(pack.data))
+			zip.file(unsafePath, 'malicious')
+			const before = await db.getFirstAsync<{ c: number }>(
+				`SELECT COUNT(*) AS c FROM medicines`,
+			)
+
+			await expect(
+				restoreFromBackupZipBytes(db, await zip.generateAsync({ type: 'uint8array' })),
+			).rejects.toMatchObject({ name: 'UNSAFE_MEDIA_PATH' })
+			const after = await db.getFirstAsync<{ c: number }>(
+				`SELECT COUNT(*) AS c FROM medicines`,
+			)
+			expect(after?.c).toBe(before?.c)
+		},
+	)
 
 	it('rejects future formatVersion without mutation', async () => {
 		const { db, mediaMap } = await buildRichDb()
