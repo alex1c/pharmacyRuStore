@@ -2,22 +2,20 @@
 
 ## Current phase
 
-**Phase 6 — Сканирование и быстрый ввод** (complete)
+**Phase 7 — Full backup / restore / export** (complete)
 
 ## Completed
 
-### Phase 0–4
-Foundation, inventory, expiry/stock, courses/intake, native local reminders (schema v1–v5).
+### Phase 0–6
+Foundation through scanning/fast entry (schema v1–v7).
 
-### Phase 5
-Family CRUD + shopping lifecycle (schema v6).
-
-### Phase 6
-- Schema v7: `medicine_codes`; batch `lot_number` / `serial_number` / `scanned_code_raw`
-- `expo-camera` scanner (EAN/UPC/Code128/QR/DataMatrix) with torch + manual code entry
-- Best-effort GS1 parser; local code matching; no mandatory external API
-- Fast entry: recent medicines, duplicate name warning, shopping «Куплено» → scan
-- See [`docs/SCANNING_ARCHITECTURE.md`](SCANNING_ARCHITECTURE.md)
+### Phase 7
+- Logical ZIP backup (`manifest.json` + `data.json` + `media/`), formatVersion 1
+- Replace-policy restore with validation, operation lock, safety rollback
+- Media remapping; `scheduled_notifications` excluded; post-restore shopping + reminder sync
+- Inventory CSV export (UTF-8 BOM, `;`)
+- UI: Ещё → Резервная копия
+- See [`docs/BACKUP_FORMAT.md`](BACKUP_FORMAT.md)
 
 ## Phase 4 note
 
@@ -27,20 +25,21 @@ Functional native reminders confirmed in prior checkpoint; extended native matri
 
 - Archived medicine photos not deleted from disk yet
 - Exact alarm special access may be denied on Android 14+ by default
-- Physical-device barcode scan QA deferred (emulator uses manual code entry)
+- Physical-device barcode scan QA deferred
+- Backup ZIP is not encrypted
 
 ## Deferred
 
-- Backup / restore (Phase 7)
 - AppMetrica + ads (Phase 8)
 - Final icon / screenshots / release signing (Phase 9)
 - Extended native notification matrix
 - Remote medicine catalogue enrichment
+- Optional encrypted backup
 
 ## Next checkpoint
 
-Phase 7 — full backup, restore and export
+Codex Phase 7 round-trip review → then Phase 8 (analytics/ads) when ready
 
 ## Last verified commit SHA
 
-`e8149ada93328b426a89e96733300adad87c406c`
+(pending Phase 7 commit)

@@ -28,6 +28,14 @@ Checklist to re-verify before RuStore publication after AppMetrica / РСЯ are 
 - No upload of scanned codes to external services in the current version
 - Gallery photo pick for medicine images remains separate from scanner camera permission
 
+## Backup (Phase 7)
+
+- Backup ZIP is created **locally**; the app does not upload it to any server
+- The user chooses where to save or send the file (system share / document picker)
+- The file may contain sensitive household medicine and intake information
+- Backup is **not encrypted** — store it in a safe place
+- No analytics/ad device identifiers are included in backups
+
 ## Do not claim until true
 
 - Cloud sync
@@ -35,3 +43,4 @@ Checklist to re-verify before RuStore publication after AppMetrica / РСЯ are 
 - Transmission of medicine lists to our servers
 - Medical advice / diagnosis capabilities
 - Remote medicine catalogue / Честный знак live lookup
+- Encrypted / password-protected backup

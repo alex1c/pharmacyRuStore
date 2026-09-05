@@ -54,8 +54,14 @@ export default function MoreScreen () {
 					showChevron
 					onPress={() => router.push('/family/index')}
 				/>
+				<ListRow
+					title="Резервная копия"
+					subtitle="Сохранить и восстановить данные"
+					showChevron
+					onPress={() => router.push('/settings/backup' as never)}
+				/>
 				{moreRows
-					.filter((row) => row.id !== 'family')
+					.filter((row) => row.id !== 'family' && row.id !== 'backup')
 					.map((row, index, list) => (
 					<ListRow
 						key={row.id}

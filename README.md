@@ -147,6 +147,12 @@ Inventory / intake flows (stack):
 - Recent medicines + duplicate-name warning on create
 - See [`docs/SCANNING_ARCHITECTURE.md`](docs/SCANNING_ARCHITECTURE.md)
 
+### Backup / restore / export (Phase 7)
+
+- Logical ZIP backup (formatVersion 1); replace restore with rollback safety
+- Photos remapped; notification ledger excluded; CSV inventory export
+- See [`docs/BACKUP_FORMAT.md`](docs/BACKUP_FORMAT.md)
+
 ## Git workflow
 
 - GitHub `main` is the source of truth
@@ -164,8 +170,8 @@ Inventory / intake flows (stack):
 | Phase 3 | Курсы и приём |
 | Phase 4 | Native reminders |
 | Phase 5 | Покупки и семья |
-| Phase 6 | Scanning (**current**) |
-| Phase 7 | Backup / restore |
+| Phase 6 | Scanning |
+| Phase 7 | Backup / restore (**current**) |
 | Phase 8 | Ads + AppMetrica |
 | Phase 9 | Release |
 

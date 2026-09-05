@@ -99,6 +99,10 @@ export default function RootLayout () {
 						name="settings/reminders"
 						options={{ headerShown: false }}
 					/>
+					<Stack.Screen
+						name="settings/backup"
+						options={{ headerShown: false }}
+					/>
 					<Stack.Screen name="family/index" options={{ headerShown: false }} />
 					<Stack.Screen name="courses/form" options={{ headerShown: false }} />
 					<Stack.Screen name="scan/index" options={{ headerShown: false }} />
