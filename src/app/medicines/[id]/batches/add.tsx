@@ -17,6 +17,8 @@ import { createBatch, getLatestActiveBatchPrefill } from '@/db/repositories/medi
 import { listCabinetsByHousehold } from '@/db/repositories/medicineCabinets'
 import { getMedicineById } from '@/db/repositories/medicines'
 import { listLocationsByCabinet } from '@/db/repositories/storageLocations'
+import { markPurchasedWithBatch } from '@/domain/purchaseService'
+import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 import {
 	AfterOpeningUnit,
 	MedicineCabinet,
@@ -29,7 +31,10 @@ import { ExpiryPrecision, normalizeExpiryInput } from '@/utils/expiry'
 import { parseQuantityInput } from '@/utils/quantity'
 
 export default function AddBatchScreen () {
-	const { id } = useLocalSearchParams<{ id: string }>()
+	const { id, shoppingItemId } = useLocalSearchParams<{
+		id: string
+		shoppingItemId?: string
+	}>()
 	const { executor, seed } = useDatabase()
 	const [cabinets, setCabinets] = useState<MedicineCabinet[]>([])
 	const [locations, setLocations] = useState<StorageLocation[]>([])
@@ -146,7 +151,7 @@ export default function AddBatchScreen () {
 
 		setSaving(true)
 		try {
-			await createBatch(executor, {
+			const batchInput = {
 				medicineId: id,
 				cabinetId,
 				storageLocationId: locationId,
@@ -158,7 +163,25 @@ export default function AddBatchScreen () {
 				afterOpeningValue: afterValue,
 				afterOpeningUnit: afterValue ? afterOpeningUnit : null,
 				notes,
-			})
+			}
+			if (shoppingItemId) {
+				try {
+					await markPurchasedWithBatch(executor, {
+						shoppingItemId,
+						batch: batchInput,
+					})
+				} catch (error) {
+					if (error instanceof Error && error.message === 'ALREADY_COMPLETED') {
+						Alert.alert('Уже отмечено', 'Покупка уже завершена.')
+						router.back()
+						return
+					}
+					throw error
+				}
+			} else {
+				await createBatch(executor, batchInput)
+				await safeSyncAutomaticShoppingItems(executor, seed.household.id)
+			}
 			router.back()
 		} catch (error) {
 			analytics.reportError(error, { source: 'AddBatch.save' })

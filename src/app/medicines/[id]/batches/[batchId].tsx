@@ -19,6 +19,7 @@ import {
 	getBatchById,
 	updateBatch,
 } from '@/db/repositories/medicineBatches'
+import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 import { listCabinetsByHousehold } from '@/db/repositories/medicineCabinets'
 import { listLocationsByCabinet } from '@/db/repositories/storageLocations'
 import {
@@ -166,6 +167,8 @@ export default function EditBatchScreen () {
 				afterOpeningUnit: afterValue ? afterOpeningUnit : null,
 				notes,
 			})
+			// Quantity changes affect low/empty shopping reconciliation.
+			await safeSyncAutomaticShoppingItems(executor, seed.household.id)
 			router.back()
 		} catch (error) {
 			analytics.reportError(error, { source: 'EditBatch.save' })
@@ -194,6 +197,10 @@ export default function EditBatchScreen () {
 								return
 							}
 							await archiveBatch(executor, batchId)
+							await safeSyncAutomaticShoppingItems(
+								executor,
+								seed.household.id,
+							)
 							router.back()
 						})()
 					},

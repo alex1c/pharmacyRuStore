@@ -19,7 +19,7 @@ describe('database foundation', () => {
 		const db = createTestSqlExecutor()
 		const version = await applyMigrations(db)
 		expect(version).toBe(getLatestSchemaVersion())
-		expect(await getSchemaVersion(db)).toBe(5)
+		expect(await getSchemaVersion(db)).toBe(6)
 	})
 
 	it('upgrades a populated v3 database to v4 without data loss and is repeatable', async () => {
@@ -36,8 +36,8 @@ describe('database foundation', () => {
 			 VALUES ('legacy-hh', 'Legacy', 'a', 'a')`,
 		)
 
-		expect(await applyMigrations(db)).toBe(5)
-		expect(await applyMigrations(db)).toBe(5)
+		expect(await applyMigrations(db)).toBe(6)
+		expect(await applyMigrations(db)).toBe(6)
 		expect(
 			await db.getFirstAsync<{ name: string }>(
 				`SELECT name FROM households WHERE id = 'legacy-hh'`,

@@ -107,6 +107,8 @@ Inventory / intake flows (stack):
 
 **Schema v5:** `scheduled_notifications`; `medication_courses.reminders_enabled`; `medication_reminders_enabled` setting
 
+**Schema v6:** `people.note` / `archived_at`; `shopping_items` (automatic/manual shopping list)
+
 ### Monitoring (Phase 2)
 
 - Effective expiry = earlier of package expiry and after-opening expiry
@@ -129,6 +131,12 @@ Inventory / intake flows (stack):
 - 30-day horizon; DB is source of truth; ledger maps occurrence → native ID
 - Settings → Напоминания; test notification (~10s); course «Напоминать» toggle
 - See [`docs/NOTIFICATION_ARCHITECTURE.md`](docs/NOTIFICATION_ARCHITECTURE.md)
+
+### Family & shopping (Phase 5)
+
+- People CRUD with archive (history preserved); course assignment per person
+- Automatic shopping from low/empty stock; purchase adds a new pack to existing Medicine
+- Manual and custom shopping items; completed history with manual restore
 ## Git workflow
 
 - GitHub `main` is the source of truth
@@ -144,8 +152,8 @@ Inventory / intake flows (stack):
 | Phase 1 | Аптечка / лекарства / партии |
 | Phase 2 | Сроки / остатки |
 | Phase 3 | Курсы и приём |
-| Phase 4 | Native reminders (**current**) |
-| Phase 5 | Покупки и семья |
+| Phase 4 | Native reminders |
+| Phase 5 | Покупки и семья (**current**) |
 | Phase 6 | Scanning |
 | Phase 7 | Backup / restore |
 | Phase 8 | Ads + AppMetrica |

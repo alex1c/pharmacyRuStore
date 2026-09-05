@@ -8,7 +8,7 @@ import {
 	Text,
 	View,
 } from 'react-native'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 
 import {
 	ChoiceChip,
@@ -26,6 +26,8 @@ import { useDatabase } from '@/context/DatabaseContext'
 import { listCabinetsByHousehold } from '@/db/repositories/medicineCabinets'
 import { createMedicineWithFirstBatch } from '@/db/repositories/inventory'
 import { listLocationsByCabinet } from '@/db/repositories/storageLocations'
+import { markPurchasedSimple } from '@/domain/purchaseService'
+import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 import {
 	AfterOpeningUnit,
 	MedicineCabinet,
@@ -43,12 +45,16 @@ import { isDateOnly } from '@/utils/dates'
  * Add medicine + first pack in one short flow.
  */
 export default function AddMedicineScreen () {
+	const params = useLocalSearchParams<{
+		prefillName?: string
+		shoppingItemId?: string
+	}>()
 	const { executor, seed } = useDatabase()
 	const [cabinets, setCabinets] = useState<MedicineCabinet[]>([])
 	const [locations, setLocations] = useState<StorageLocation[]>([])
 	const [saving, setSaving] = useState(false)
 
-	const [name, setName] = useState('')
+	const [name, setName] = useState(params.prefillName ?? '')
 	const [form, setForm] = useState<MedicineForm>('tablet')
 	const [strengthText, setStrengthText] = useState('')
 	const [notes, setNotes] = useState('')
@@ -191,6 +197,10 @@ export default function AddMedicineScreen () {
 			analytics.trackEvent('medicine_created', {
 				hasPhoto: Boolean(photoUri),
 			})
+			if (params.shoppingItemId) {
+				await markPurchasedSimple(executor, params.shoppingItemId)
+			}
+			await safeSyncAutomaticShoppingItems(executor, seed.household.id)
 			router.replace(`/medicines/${result.medicine.id}`)
 		} catch (error) {
 			analytics.reportError(error, { source: 'AddMedicine.save' })

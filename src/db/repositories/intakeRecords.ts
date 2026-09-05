@@ -326,6 +326,7 @@ export async function listHistoryIntakes (
 	householdId: string,
 	options: {
 		statusFilter?: 'all' | 'taken' | 'skipped'
+		personId?: string | null
 		beforeCreatedAt?: string | null
 		limit: number
 	},
@@ -338,6 +339,12 @@ export async function listHistoryIntakes (
 		statusClause = ` AND i.status = 'skipped'`
 	} else {
 		statusClause = ` AND i.status IN ('taken', 'skipped')`
+	}
+
+	let personClause = ''
+	if (options.personId) {
+		personClause = ' AND i.person_id = ?'
+		params.push(options.personId)
 	}
 
 	let beforeClause = ''
@@ -358,6 +365,7 @@ export async function listHistoryIntakes (
 		 WHERE c.household_id = ?
 			 AND i.cancelled_at IS NULL
 			 ${statusClause}
+			 ${personClause}
 			 ${beforeClause}
 		 ORDER BY COALESCE(i.actual_taken_at, i.skipped_at, i.created_at) DESC,
 			i.id DESC

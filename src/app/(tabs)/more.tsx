@@ -48,13 +48,21 @@ export default function MoreScreen () {
 					showChevron
 					onPress={() => router.push('/settings/reminders')}
 				/>
-				{moreRows.map((row, index) => (
+				<ListRow
+					title="Члены семьи"
+					subtitle="Профили для курсов"
+					showChevron
+					onPress={() => router.push('/family/index')}
+				/>
+				{moreRows
+					.filter((row) => row.id !== 'family')
+					.map((row, index, list) => (
 					<ListRow
 						key={row.id}
 						title={row.title}
 						subtitle={row.subtitle}
 						disabled
-						style={index === moreRows.length - 1 ? styles.rowLast : null}
+						style={index === list.length - 1 ? styles.rowLast : null}
 					/>
 				))}
 			</Card>

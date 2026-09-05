@@ -14,8 +14,10 @@ export interface Person {
 	id: string
 	householdId: string
 	name: string
+	note: string | null
 	createdAt: string
 	updatedAt: string
+	archivedAt: string | null
 }
 
 export interface MedicineCabinet {
@@ -259,4 +261,25 @@ export interface ScheduledNotification {
 	triggerAt: string
 	createdAt: string
 	updatedAt: string
+}
+
+export type ShoppingSource = 'automatic' | 'manual'
+export type ShoppingReason = 'low_stock' | 'empty' | 'manual'
+export type ShoppingStatus = 'active' | 'completed'
+
+export interface ShoppingItem {
+	id: string
+	householdId: string
+	medicineId: string | null
+	customName: string | null
+	desiredQuantity: number | null
+	unit: MedicineUnit | null
+	reason: ShoppingReason
+	source: ShoppingSource
+	status: ShoppingStatus
+	note: string | null
+	createdAt: string
+	updatedAt: string
+	completedAt: string | null
+	archivedAt: string | null
 }

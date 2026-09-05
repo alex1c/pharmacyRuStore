@@ -39,12 +39,14 @@ import { listPeopleByHousehold } from '@/db/repositories/people'
 import {
 	IntakeRecord,
 	MedicationCourse,
+	Person,
 } from '@/db/types'
 import { analytics } from '@/services/analytics'
 import { formatDateRu, formatInstantHm, historyDateLabel } from '@/utils/formatRu'
 import { formatQuantityWithUnit } from '@/utils/quantity'
 import { toDateOnlyLocal } from '@/utils/dates'
 import { safeSyncMedicationReminders } from '@/services/notifications'
+import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 
 type Segment = 'courses' | 'history'
 
@@ -77,40 +79,55 @@ export default function IntakeScreen () {
 	const [busyId, setBusyId] = useState<string | null>(null)
 	const [historyBefore, setHistoryBefore] = useState<string | null>(null)
 	const [hasMoreHistory, setHasMoreHistory] = useState(false)
+	const [people, setPeople] = useState<Person[]>([])
+	const [personFilter, setPersonFilter] = useState<string | 'all'>('all')
 
 	const loadCourses = useCallback(async () => {
+		const nextPeople = await listPeopleByHousehold(executor, seed.household.id)
+		setPeople(nextPeople)
 		const active = await listActiveCourses(executor, seed.household.id)
-		const people = await listPeopleByHousehold(executor, seed.household.id)
-		const peopleMap = new Map(people.map((p) => [p.id, p.name]))
+		const peopleMap = new Map(nextPeople.map((p) => [p.id, p.name]))
 		const items: CourseListItem[] = []
+		const allItems: CourseListItem[] = []
 		for (const course of active) {
 			const medicine = await getMedicineById(executor, course.medicineId)
 			const schedules = await listSchedulesForCourse(executor, course.id)
-			items.push({
+			const row = {
 				course,
 				medicineName: medicine?.name ?? 'Лекарство',
 				personName: peopleMap.get(course.personId) ?? 'Я',
 				scheduleLabel: formatScheduleSummary(schedules, course.isPrn),
-			})
+			}
+			allItems.push(row)
+			if (personFilter !== 'all' && course.personId !== personFilter) {
+				continue
+			}
+			items.push(row)
 		}
 		setCourses(items)
-		setPrnCourses(items.filter((item) => item.course.isPrn))
-	}, [executor, seed.household.id])
+		setPrnCourses(allItems.filter((item) => item.course.isPrn))
+	}, [executor, seed.household.id, personFilter])
 
 	const loadHistory = useCallback(
 		async (
 			append: boolean,
 			beforeCreatedAt: string | null = null,
 			filter: 'all' | 'taken' | 'skipped' = statusFilter,
+			person: string | 'all' = personFilter,
 		) => {
 			const before = append ? beforeCreatedAt : null
 			const rows = await listHistoryIntakes(executor, seed.household.id, {
 				statusFilter: filter,
+				personId: person === 'all' ? null : person,
 				beforeCreatedAt: before,
 				limit: 40,
 			})
-			const people = await listPeopleByHousehold(executor, seed.household.id)
-			const peopleMap = new Map(people.map((p) => [p.id, p.name]))
+			const peopleRows = await listPeopleByHousehold(
+				executor,
+				seed.household.id,
+				{ includeArchived: true },
+			)
+			const peopleMap = new Map(peopleRows.map((p) => [p.id, p.name]))
 			const mapped: HistoryItem[] = []
 			for (const intake of rows) {
 				const medicine = await getMedicineById(executor, intake.medicineId)
@@ -132,7 +149,7 @@ export default function IntakeScreen () {
 			}
 			setHasMoreHistory(rows.length >= 40)
 		},
-		[executor, seed.household.id, statusFilter],
+		[executor, seed.household.id, statusFilter, personFilter],
 	)
 
 	useFocusEffect(
@@ -161,10 +178,14 @@ export default function IntakeScreen () {
 								courseId,
 								toDateOnlyLocal(new Date()),
 							)
-							await safeSyncMedicationReminders(
+				await safeSyncMedicationReminders(
 								executor,
 								seed.household.id,
 								{ defaultPersonName: seed.person.name },
+							)
+							await safeSyncAutomaticShoppingItems(
+								executor,
+								seed.household.id,
 							)
 							await loadCourses()
 						})()
@@ -187,6 +208,7 @@ export default function IntakeScreen () {
 				await safeSyncMedicationReminders(executor, seed.household.id, {
 					defaultPersonName: seed.person.name,
 				})
+				await safeSyncAutomaticShoppingItems(executor, seed.household.id)
 				Alert.alert(
 					'Отмечено',
 					`Принято в ${formatInstantHm(record.actualTakenAt ?? '')}`,
@@ -303,6 +325,10 @@ export default function IntakeScreen () {
 								seed.household.id,
 								{ defaultPersonName: seed.person.name },
 							)
+							await safeSyncAutomaticShoppingItems(
+								executor,
+								seed.household.id,
+							)
 							await loadHistory(false, null)
 						})()
 					},
@@ -342,6 +368,34 @@ export default function IntakeScreen () {
 					}}
 				/>
 			</ChipGroup>
+
+			{people.length > 1 ? (
+				<ChipGroup label="Кто">
+					<ChoiceChip
+						label="Все"
+						selected={personFilter === 'all'}
+						onPress={() => {
+							setPersonFilter('all')
+							if (segment === 'history') {
+								void loadHistory(false, null, statusFilter, 'all')
+							}
+						}}
+					/>
+					{people.map((person) => (
+						<ChoiceChip
+							key={person.id}
+							label={person.name}
+							selected={personFilter === person.id}
+							onPress={() => {
+								setPersonFilter(person.id)
+								if (segment === 'history') {
+									void loadHistory(false, null, statusFilter, person.id)
+								}
+							}}
+						/>
+					))}
+				</ChipGroup>
+			) : null}
 
 			{segment === 'courses' ? (
 				<>
@@ -465,15 +519,15 @@ export default function IntakeScreen () {
 												</Text>
 												<Text style={styles.courseMeta}>{dose}</Text>
 												<Text style={styles.courseMeta}>
+													{people.length > 1
+														? `${item.personName} · `
+														: ''}
 													{item.intake.status === 'taken'
 														? 'Принято'
 														: 'Пропущено'}
 													{item.intake.scheduledTime
 														? ` · по плану ${item.intake.scheduledTime}`
 														: ' · по необходимости'}
-												</Text>
-												<Text style={styles.courseMeta}>
-													{item.personName}
 												</Text>
 											</Card>
 										</Pressable>

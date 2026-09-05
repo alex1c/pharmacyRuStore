@@ -263,8 +263,8 @@ describe('schema v3 and unit policy', () => {
 	it('migrates to v3 and seeds settings', async () => {
 		const db = createTestSqlExecutor()
 		const version = await applyMigrations(db)
-		expect(version).toBe(5)
-		expect(getLatestSchemaVersion()).toBe(5)
+		expect(version).toBe(6)
+		expect(getLatestSchemaVersion()).toBe(6)
 		await ensureFirstRunDefaults(db)
 		await ensureAppSettings(db)
 		const settings = await getAppSettings(db)

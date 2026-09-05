@@ -2,41 +2,43 @@
 
 ## Current phase
 
-**Phase 4 — Native Android medication reminders** (complete)
+**Phase 5 — Покупки и семья** (complete)
 
 ## Completed
 
-### Phase 0–3
-See prior history: foundation, inventory, expiry/stock, courses/intake/history (schema v1–v4).
+### Phase 0–4
+Foundation, inventory, expiry/stock, courses/intake, native local reminders (schema v1–v5).
 
-### Phase 4
-- `expo-notifications` ~57.0.17 (local only, no push)
-- Schema v5: `scheduled_notifications` ledger; `medication_courses.reminders_enabled`; setting `medication_reminders_enabled`
-- Channel `medication-reminders`; 30-day rolling horizon; occurrence key sync
-- Permission contextual prompt on fixed-schedule course save; Settings → Напоминания
-- Reconciliation on startup / course mutations / intake / archive / permission grant
-- Tap → Today; no background Taken/Snooze actions (correctness)
-- `SCHEDULE_EXACT_ALARM` declared; `USE_EXACT_ALARM` not used
-- Docs: `docs/NOTIFICATION_ARCHITECTURE.md`
+### Phase 5
+- Schema v6: `people.note`, `people.archived_at`; `shopping_items` + partial unique automatic medicine index
+- Family CRUD (Ещё → Члены семьи); default «Я» protected; archive finishes courses, keeps history
+- Person filter on Приём / History; Today hides default name
+- Automatic shopping from low/empty stock (idempotent sync); recovery → completed
+- Manual medicine + custom items; purchase → new batch (no duplicate Medicine)
+- Shopping tab + badge; medicine detail shopping actions
+- Intake taken/undo syncs shopping list
+
+## Phase 4 note
+
+Functional native reminders confirmed in prior checkpoint; extended native matrix deferred to final release QA.
 
 ## Known issues
 
-- Archived medicine photos are not deleted from disk yet
-- Exact alarm special access may be denied by default on Android 14+ (inexact fallback possible)
-- Dose quantity correction with inventory recalculation deferred
+- Archived medicine photos not deleted from disk yet
+- Exact alarm special access may be denied on Android 14+ by default
 
 ## Deferred
 
-- Shopping list & family management (Phase 5)
-- Package scanning (Phase 6)
+- Scanner (Phase 6)
 - Backup / restore (Phase 7)
-- AppMetrica + РСЯ production SDKs (Phase 8)
-- Final icon, RuStore screenshots, release keystore (Phase 9)
+- AppMetrica + ads (Phase 8)
+- Final icon / screenshots / release signing (Phase 9)
+- Extended native notification matrix
 
 ## Next checkpoint
 
-Codex native Phase 4 review on Pixel_10 API 37
+Phase 6 — medicine scanning and fast entry
 
 ## Last verified commit SHA
 
-64f314fac8551be3c85dfaa7b1eb728f9df04210
+(pending Phase 5 commit)

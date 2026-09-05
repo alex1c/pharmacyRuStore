@@ -90,7 +90,7 @@ describe('intake service', () => {
 	async function setup () {
 		const db = createTestSqlExecutor()
 		await applyMigrations(db)
-		expect(getLatestSchemaVersion()).toBe(5)
+		expect(getLatestSchemaVersion()).toBe(6)
 		const seed = await ensureFirstRunDefaults(db)
 		const medicine = await createMedicine(db, {
 			householdId: seed.household.id,

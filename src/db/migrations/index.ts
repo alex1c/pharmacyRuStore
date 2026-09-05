@@ -3,6 +3,7 @@ import { migration002Inventory } from './002_inventory'
 import { migration003Monitoring } from './003_monitoring'
 import { migration004MedicationSchedules } from './004_medication_schedules'
 import { migration005MedicationReminders } from './005_medication_reminders'
+import { migration006FamilyShopping } from './006_family_shopping'
 
 export interface Migration {
 	version: number
@@ -39,6 +40,11 @@ export const migrations: Migration[] = [
 		version: 5,
 		name: '005_medication_reminders',
 		sql: migration005MedicationReminders,
+	},
+	{
+		version: 6,
+		name: '006_family_shopping',
+		sql: migration006FamilyShopping,
 	},
 ]
 

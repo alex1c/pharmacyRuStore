@@ -36,6 +36,7 @@ import { formatInstantHm } from '@/utils/formatRu'
 import { formatQuantityWithUnit } from '@/utils/quantity'
 import { toDateOnlyLocal } from '@/utils/dates'
 import { safeSyncMedicationReminders } from '@/services/notifications'
+import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 
 /**
  * «Сегодня» — scheduled intake for today + inventory attention.
@@ -70,6 +71,7 @@ export default function TodayScreen () {
 		void safeSyncMedicationReminders(executor, seed.household.id, {
 			defaultPersonName: seed.person.name,
 		})
+		void safeSyncAutomaticShoppingItems(executor, seed.household.id)
 	}, [executor, seed.household.id, seed.person.name])
 
 	useFocusEffect(
@@ -331,9 +333,11 @@ export default function TodayScreen () {
 											{view.medicineName}
 										</Text>
 										<Text style={styles.occurrenceMeta}>{dose}</Text>
-										<Text style={styles.occurrenceMeta}>
-											{view.personName}
-										</Text>
+										{view.personName !== seed.person.name ? (
+											<Text style={styles.occurrenceMeta}>
+												{view.personName}
+											</Text>
+										) : null}
 										{view.status === 'taken' ? (
 											<Text style={styles.statusOk}>
 												Принято

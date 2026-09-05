@@ -65,6 +65,13 @@ export function useAppBootstrap (): BootstrapState {
 						initialized.seed.household.id,
 						{ defaultPersonName: initialized.seed.person.name },
 					)
+					const { safeSyncAutomaticShoppingItems } = await import(
+						'@/domain/shoppingService'
+					)
+					await safeSyncAutomaticShoppingItems(
+						initialized.executor,
+						initialized.seed.household.id,
+					)
 				} catch (error) {
 					logger.error('Notification bootstrap failed', error)
 					analytics.reportError(error, {

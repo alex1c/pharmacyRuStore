@@ -55,13 +55,14 @@ export default function CourseFormScreen () {
 	const params = useLocalSearchParams<{
 		courseId?: string
 		medicineId?: string
+		personId?: string
 	}>()
 	const isEdit = Boolean(params.courseId)
 	const { executor, seed } = useDatabase()
 
 	const [people, setPeople] = useState<Person[]>([])
 	const [medicines, setMedicines] = useState<Medicine[]>([])
-	const [personId, setPersonId] = useState(seed.person.id)
+	const [personId, setPersonId] = useState(params.personId ?? seed.person.id)
 	const [medicineId, setMedicineId] = useState(params.medicineId ?? '')
 	const [doseText, setDoseText] = useState('1')
 	const [doseUnit, setDoseUnit] = useState<MedicineUnit>('tablet')
@@ -98,6 +99,10 @@ export default function CourseFormScreen () {
 				})
 				setPeople(nextPeople)
 				setMedicines(nextMedicines)
+
+				if (params.personId) {
+					setPersonId(params.personId)
+				}
 
 				if (params.medicineId) {
 					setMedicineId(params.medicineId)
@@ -167,6 +172,7 @@ export default function CourseFormScreen () {
 			isEdit,
 			params.courseId,
 			params.medicineId,
+			params.personId,
 			seed.household.id,
 		]),
 	)

@@ -47,8 +47,10 @@ export async function ensureFirstRunDefaults (
 		id: createId('person'),
 		householdId: household.id,
 		name: defaultSeed.personName,
+		note: null,
 		createdAt: timestamp,
 		updatedAt: timestamp,
+		archivedAt: null,
 	}
 	const cabinet: MedicineCabinet = {
 		id: createId('cab'),
@@ -125,10 +127,12 @@ async function requireDefaultPerson (
 		id: string
 		household_id: string
 		name: string
+		note: string | null
 		created_at: string
 		updated_at: string
+		archived_at: string | null
 	}>(
-		`SELECT id, household_id, name, created_at, updated_at
+		`SELECT id, household_id, name, note, created_at, updated_at, archived_at
 		 FROM people WHERE household_id = ? ORDER BY created_at ASC LIMIT 1`,
 		[householdId],
 	)
@@ -181,15 +185,19 @@ function mapPerson (row: {
 	id: string
 	household_id: string
 	name: string
+	note?: string | null
 	created_at: string
 	updated_at: string
+	archived_at?: string | null
 }): Person {
 	return {
 		id: row.id,
 		householdId: row.household_id,
 		name: row.name,
+		note: row.note ?? null,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
+		archivedAt: row.archived_at ?? null,
 	}
 }
 

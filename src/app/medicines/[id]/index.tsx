@@ -48,6 +48,7 @@ import {
 	stockStatusLabel,
 } from '@/utils/statusCopy'
 import { formatQuantityWithUnit } from '@/utils/quantity'
+import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 import { safeSyncMedicationReminders } from '@/services/notifications'
 
 interface BatchView extends MedicineBatch {
@@ -69,6 +70,7 @@ export default function MedicineDetailScreen () {
 	const [summary, setSummary] = useState<MedicineSummary | null>(null)
 	const [batches, setBatches] = useState<BatchView[]>([])
 	const [courses, setCourses] = useState<CourseView[]>([])
+	const [shoppingActive, setShoppingActive] = useState(false)
 	const [warningDays, setWarningDays] = useState(30)
 
 	const load = useCallback(async () => {
@@ -106,9 +108,14 @@ export default function MedicineDetailScreen () {
 				scheduleLabel: formatScheduleSummary(schedules, course.isPrn),
 			})
 		}
+		const { findActiveForMedicine } = await import(
+			'@/db/repositories/shoppingItems'
+		)
+		const shop = await findActiveForMedicine(executor, id)
 		setSummary(nextSummary)
 		setBatches(enriched)
 		setCourses(courseViews)
+		setShoppingActive(Boolean(shop))
 	}, [executor, id])
 
 	useFocusEffect(
@@ -158,6 +165,10 @@ export default function MedicineDetailScreen () {
 					onPress: () => {
 						void (async () => {
 							await archiveBatch(executor, batchId)
+							await safeSyncAutomaticShoppingItems(
+								executor,
+								seed.household.id,
+							)
 							await load()
 						})()
 					},
@@ -233,6 +244,41 @@ export default function MedicineDetailScreen () {
 				onPress={() => router.push(`/medicines/${id}/batches/add`)}
 				style={styles.refill}
 			/>
+
+			{shoppingActive ? (
+				<Card style={styles.courseCard}>
+					<Text style={styles.statusWarn}>Нужно купить</Text>
+					<SecondaryButton
+						label="Открыть покупки"
+						onPress={() => router.push('/(tabs)/shopping')}
+						style={styles.packButton}
+					/>
+				</Card>
+			) : (
+				<SecondaryButton
+					label="Добавить в покупки"
+					onPress={() => {
+						void (async () => {
+							if (!id) {
+								return
+							}
+							const { addMedicineToShopping } = await import(
+								'@/domain/purchaseService'
+							)
+							const result = await addMedicineToShopping(executor, {
+								householdId: seed.household.id,
+								medicineId: id,
+								unit: summary.unit,
+							})
+							if (!result.created) {
+								Alert.alert('Уже в покупках', 'Это лекарство уже в списке.')
+							}
+							await load()
+						})()
+					}}
+					style={styles.refill}
+				/>
+			)}
 
 			<View style={styles.actions}>
 				<SecondaryButton

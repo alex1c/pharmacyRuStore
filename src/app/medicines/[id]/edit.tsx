@@ -20,13 +20,14 @@ import {
 } from '@/db/repositories/medicines'
 import { getAppSettings } from '@/db/repositories/settings'
 import { MedicineForm } from '@/db/types'
+import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 import { pickAndStoreMedicinePhoto } from '@/services/medicineMedia'
 import { analytics } from '@/services/analytics'
 import { parseQuantityInput } from '@/utils/quantity'
 
 export default function EditMedicineScreen () {
 	const { id } = useLocalSearchParams<{ id: string }>()
-	const { executor } = useDatabase()
+	const { executor, seed } = useDatabase()
 	const [name, setName] = useState('')
 	const [form, setForm] = useState<MedicineForm>('other')
 	const [strengthText, setStrengthText] = useState('')
@@ -96,6 +97,8 @@ export default function EditMedicineScreen () {
 				photoUri,
 				lowStockThreshold,
 			})
+			// Threshold overrides can create/complete automatic shopping rows.
+			await safeSyncAutomaticShoppingItems(executor, seed.household.id)
 			router.back()
 		} catch (error) {
 			analytics.reportError(error, { source: 'EditMedicine.save' })

@@ -25,7 +25,7 @@ import { parseQuantityInput } from '@/utils/quantity'
  * Stock/expiry monitoring settings.
  */
 export default function StockControlSettingsScreen () {
-	const { executor } = useDatabase()
+	const { executor, seed } = useDatabase()
 	const [warningDays, setWarningDays] = useState(30)
 	const [lowStockText, setLowStockText] = useState('5')
 	const [error, setError] = useState<string | null>(null)
@@ -53,6 +53,10 @@ export default function StockControlSettingsScreen () {
 		try {
 			await setExpiryWarningDays(executor, warningDays)
 			await setDefaultLowStockThreshold(executor, parsed)
+			const { safeSyncAutomaticShoppingItems } = await import(
+				'@/domain/shoppingService'
+			)
+			await safeSyncAutomaticShoppingItems(executor, seed.household.id)
 			Alert.alert('Сохранено', 'Настройки контроля запасов обновлены.')
 		} catch (err) {
 			analytics.reportError(err, { source: 'StockSettings.save' })

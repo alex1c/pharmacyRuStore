@@ -105,7 +105,7 @@ describe('medication reminder reconciliation', () => {
 	async function setup () {
 		const db = createTestSqlExecutor()
 		await applyMigrations(db)
-		expect(getLatestSchemaVersion()).toBe(5)
+		expect(getLatestSchemaVersion()).toBe(6)
 		const seed = await ensureFirstRunDefaults(db)
 		const medicine = await createMedicine(db, {
 			householdId: seed.household.id,
@@ -554,6 +554,6 @@ describe('medication reminder reconciliation', () => {
 			client,
 			now,
 		})
-		expect(getLatestSchemaVersion()).toBe(5)
+		expect(getLatestSchemaVersion()).toBe(6)
 	})
 })
