@@ -42,4 +42,4 @@ Codex Phase 7 round-trip review → then Phase 8 (analytics/ads) when ready
 
 ## Last verified commit SHA
 
-(pending Phase 7 commit)
+`c20da1a57e4953f8c096570bdbe6d56fb0cae789`
