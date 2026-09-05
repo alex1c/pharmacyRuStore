@@ -41,4 +41,4 @@ Phase 6 — medicine scanning and fast entry
 
 ## Last verified commit SHA
 
-(pending Phase 5 commit)
+`3bf16cb11254224aa1450182ae6dbaec82dc3963`
