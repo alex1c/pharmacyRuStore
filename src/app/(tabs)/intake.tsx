@@ -41,7 +41,7 @@ import {
 	MedicationCourse,
 	Person,
 } from '@/db/types'
-import { analytics } from '@/services/analytics'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
 import { formatDateRu, formatInstantHm, historyDateLabel } from '@/utils/formatRu'
 import { formatQuantityWithUnit } from '@/utils/quantity'
 import { toDateOnlyLocal } from '@/utils/dates'
@@ -178,6 +178,7 @@ export default function IntakeScreen () {
 								courseId,
 								toDateOnlyLocal(new Date()),
 							)
+							analytics.trackEvent(AnalyticsEvents.COURSE_FINISHED)
 				await safeSyncMedicationReminders(
 								executor,
 								seed.household.id,
@@ -209,6 +210,7 @@ export default function IntakeScreen () {
 					defaultPersonName: seed.person.name,
 				})
 				await safeSyncAutomaticShoppingItems(executor, seed.household.id)
+				analytics.trackEvent(AnalyticsEvents.INTAKE_TAKEN)
 				Alert.alert(
 					'Отмечено',
 					`Принято в ${formatInstantHm(record.actualTakenAt ?? '')}`,

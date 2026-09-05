@@ -46,7 +46,7 @@ import {
 	StorageLocation,
 } from '@/db/types'
 import { pickAndStoreMedicinePhoto } from '@/services/medicineMedia'
-import { analytics } from '@/services/analytics'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
 import {
 	ExpiryPrecision,
 	getExpiryPrecision,
@@ -256,8 +256,9 @@ export default function AddMedicineScreen () {
 				}
 			}
 
-			analytics.trackEvent('medicine_created', {
-				hasPhoto: Boolean(photoUri),
+			// After successful persist only — never include medicine name / codes.
+			analytics.trackEvent(AnalyticsEvents.MEDICINE_CREATED, {
+				source: params.attachScan === '1' || Boolean(session) ? 'scan' : 'manual',
 			})
 			if (params.shoppingItemId) {
 				await markPurchasedSimple(executor, params.shoppingItemId)

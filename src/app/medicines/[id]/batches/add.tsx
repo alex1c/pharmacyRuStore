@@ -27,7 +27,7 @@ import {
 	MedicineUnit,
 	StorageLocation,
 } from '@/db/types'
-import { analytics } from '@/services/analytics'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
 import { isDateOnly } from '@/utils/dates'
 import { ExpiryPrecision, getExpiryPrecision, normalizeExpiryInput } from '@/utils/expiry'
 import { parseQuantityInput } from '@/utils/quantity'
@@ -226,6 +226,14 @@ export default function AddBatchScreen () {
 				await createBatch(executor, batchInput)
 				await safeSyncAutomaticShoppingItems(executor, seed.household.id)
 			}
+			// After successful batch persist — no medicine identifiers.
+			analytics.trackEvent(AnalyticsEvents.BATCH_ADDED, {
+				source: shoppingItemId
+					? 'shopping'
+					: attachScan === '1' || Boolean(session)
+						? 'scan'
+						: 'manual',
+			})
 			clearPendingScan()
 			router.back()
 		} catch (error) {

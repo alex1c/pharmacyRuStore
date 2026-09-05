@@ -64,7 +64,8 @@
           "imageWidth": 120
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "./plugins/withAppMetricaNoAdId.js"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -73,8 +74,9 @@
     "extra": {
       "appName": "Моя аптечка",
       "analytics": {
-        "provider": "noop",
-        "appMetricaApiKey": null
+        "provider": "appmetrica",
+        "appMetricaApiKey": "bbf42d5e-64b9-4a91-b4d0-766438bd07b3",
+        "enableInDev": false
       },
       "ads": {
         "provider": "noop",

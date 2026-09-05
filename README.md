@@ -153,6 +153,15 @@ Inventory / intake flows (stack):
 - Photos remapped; notification ledger excluded; CSV inventory export
 - See [`docs/BACKUP_FORMAT.md`](docs/BACKUP_FORMAT.md)
 
+### Analytics — AppMetrica (Phase 8A)
+
+- `@appmetrica/react-native-analytics` production integration
+- Production API key centralized; activate once at cold start
+- Privacy-safe typed event taxonomy + runtime allowlist sanitization
+- No medicine names, person names, raw codes, or intake contents in analytics
+- Yandex Ads / РСЯ deferred to Phase 8B
+- See [`docs/DATA_SAFETY.md`](docs/DATA_SAFETY.md) and [`docs/privacy.html`](docs/privacy.html)
+
 ## Git workflow
 
 - GitHub `main` is the source of truth
@@ -171,8 +180,9 @@ Inventory / intake flows (stack):
 | Phase 4 | Native reminders |
 | Phase 5 | Покупки и семья |
 | Phase 6 | Scanning |
-| Phase 7 | Backup / restore (**current**) |
-| Phase 8 | Ads + AppMetrica |
+| Phase 7 | Backup / restore |
+| Phase 8A | AppMetrica (**current**) |
+| Phase 8B | Yandex Ads / РСЯ |
 | Phase 9 | Release |
 
 ## Current status

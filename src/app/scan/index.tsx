@@ -23,9 +23,11 @@ import { useDatabase } from '@/context/DatabaseContext'
 import { createScanLock } from '@/domain/scanLock'
 import {
 	buildScanSession,
+	mapBarcodeTypeToCodeType,
 	resolveScannedCode,
 } from '@/domain/scanService'
-import { analytics } from '@/services/analytics'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
+import type { ScanCodeTypeParam } from '@/services/analytics'
 
 const BARCODE_TYPES = [
 	'ean13',
@@ -58,6 +60,7 @@ export default function ScanScreen () {
 
 	useEffect(() => {
 		analytics.trackScreen('scan')
+		analytics.trackEvent(AnalyticsEvents.SCAN_STARTED)
 	}, [])
 
 	useFocusEffect(
@@ -120,7 +123,7 @@ export default function ScanScreen () {
 				shoppingItemId: params.shoppingItemId,
 			})
 			if (!session) {
-				analytics.trackEvent('scan_failed', { reason: 'empty' })
+				analytics.trackEvent(AnalyticsEvents.SCAN_FAILED)
 				Alert.alert(
 					'Не удалось распознать код',
 					'Попробуйте поднести упаковку ближе или введите код вручную.',
@@ -131,15 +134,18 @@ export default function ScanScreen () {
 				return
 			}
 
-			const result = await resolveScannedCode(executor, session)
+			await resolveScannedCode(executor, session)
 			// Generic success only — never include raw code / GTIN / serial.
-			analytics.trackEvent('scan_success', {
-				status: result.status,
+			const mapped = mapBarcodeTypeToCodeType(session.scanned.barcodeType)
+			const codeType: ScanCodeTypeParam =
+				mapped === 'gtin' || mapped === 'unknown' ? 'other' : mapped
+			analytics.trackEvent(AnalyticsEvents.SCAN_SUCCESS, {
+				code_type: codeType,
 			})
 			router.replace('/scan/result')
 		} catch (error) {
 			analytics.reportError(error, { source: 'ScanScreen.detect' })
-			analytics.trackEvent('scan_failed', { reason: 'error' })
+			analytics.trackEvent(AnalyticsEvents.SCAN_FAILED)
 			Alert.alert('Ошибка', 'Не удалось обработать код. Введите данные вручную.')
 			lockRef.current.release()
 			setBusy(false)
@@ -235,7 +241,7 @@ export default function ScanScreen () {
 					}}
 					onMountError={() => {
 						setCameraReady(false)
-						analytics.trackEvent('scan_failed', { reason: 'camera' })
+						analytics.trackEvent(AnalyticsEvents.SCAN_FAILED)
 					}}
 				/>
 			) : (

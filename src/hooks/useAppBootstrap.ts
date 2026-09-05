@@ -4,7 +4,11 @@ import * as Notifications from 'expo-notifications'
 import { router } from 'expo-router'
 
 import { initializeDatabase, InitializedDatabase } from '@/db/database'
-import { analytics } from '@/services/analytics'
+import {
+	analytics,
+	initializeAnalytics,
+	trackAppOpenOnce,
+} from '@/services/analytics'
 import { logger } from '@/services/logging'
 import {
 	configureForegroundNotificationHandler,
@@ -42,16 +46,16 @@ export function useAppBootstrap (): BootstrapState {
 		async function run () {
 			try {
 				logger.info('Starting database bootstrap')
+				// Analytics must never block or fail DB startup.
+				initializeAnalytics()
 				const initialized = await initializeDatabase()
 				if (cancelled) {
 					return
 				}
 				setDatabase(initialized)
 				setStatus('ready')
-				analytics.trackEvent('app_bootstrap_ok', {
-					schemaVersion: initialized.schemaVersion,
-					seeded: initialized.seed.seeded,
-				})
+				// One logical cold-start open — not on every foreground bounce.
+				trackAppOpenOnce()
 				logger.info('Database bootstrap complete', {
 					schemaVersion: initialized.schemaVersion,
 					seeded: initialized.seed.seeded,

@@ -11,8 +11,6 @@ import { bootstrapCopy } from '@/constants/copy'
 import { colors } from '@/constants/theme'
 import { DatabaseProvider } from '@/context/DatabaseContext'
 import { useAppBootstrap } from '@/hooks/useAppBootstrap'
-import { analytics } from '@/services/analytics'
-
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Splash may already be hidden in some environments.
 })
@@ -26,12 +24,6 @@ export default function RootLayout () {
 	useEffect(() => {
 		if (bootstrap.status !== 'loading') {
 			SplashScreen.hideAsync().catch(() => undefined)
-		}
-	}, [bootstrap.status])
-
-	useEffect(() => {
-		if (bootstrap.status === 'ready') {
-			analytics.trackScreen('root')
 		}
 	}, [bootstrap.status])
 

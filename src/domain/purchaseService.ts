@@ -8,6 +8,7 @@ import {
 } from '@/db/repositories/shoppingItems'
 import { SqlExecutor } from '@/db/sqlExecutor'
 import { MedicineUnit, ShoppingItem } from '@/db/types'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
 import { syncAutomaticShoppingItems } from './shoppingService'
 
 /**
@@ -34,6 +35,9 @@ export async function addMedicineToShopping (
 		source: 'manual',
 		note: input.note,
 	})
+	analytics.trackEvent(AnalyticsEvents.SHOPPING_ITEM_ADDED, {
+		source: 'manual',
+	})
 	return { item, created: true }
 }
 
@@ -48,13 +52,17 @@ export async function addCustomShoppingItem (
 	if (!name) {
 		throw new Error('INVALID_NAME')
 	}
-	return insertShoppingItem(db, {
+	const item = await insertShoppingItem(db, {
 		householdId: input.householdId,
 		customName: name,
 		reason: 'manual',
 		source: 'manual',
 		note: input.note,
 	})
+	analytics.trackEvent(AnalyticsEvents.SHOPPING_ITEM_ADDED, {
+		source: 'manual',
+	})
+	return item
 }
 
 /**
@@ -91,9 +99,17 @@ export async function markPurchasedWithBatch (
 	}
 
 	if (db.withTransactionAsync) {
-		return db.withTransactionAsync(run)
+		const result = await db.withTransactionAsync(run)
+		analytics.trackEvent(AnalyticsEvents.SHOPPING_COMPLETED, {
+			type: 'medicine',
+		})
+		return result
 	}
-	return run()
+	const result = await run()
+	analytics.trackEvent(AnalyticsEvents.SHOPPING_COMPLETED, {
+		type: 'medicine',
+	})
+	return result
 }
 
 /**
@@ -110,7 +126,11 @@ export async function markPurchasedSimple (
 	if (item.status === 'completed') {
 		return item
 	}
-	return completeShoppingItem(db, shoppingItemId)
+	const completed = await completeShoppingItem(db, shoppingItemId)
+	analytics.trackEvent(AnalyticsEvents.SHOPPING_COMPLETED, {
+		type: item.medicineId ? 'medicine' : 'custom',
+	})
+	return completed
 }
 
 /**

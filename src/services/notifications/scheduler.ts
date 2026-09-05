@@ -260,7 +260,6 @@ async function scheduleDesired (
 		logger.error('Failed to schedule medication reminder', error)
 		analytics.reportError(error, {
 			source: 'syncMedicationReminders.schedule',
-			occurrenceKey: want.occurrenceKey,
 		})
 		// Do not leave a false-success ledger row.
 		await deleteByOccurrenceKey(db, want.occurrenceKey)

@@ -30,7 +30,7 @@ import {
 	writeTempBackupZip,
 	writeTempCsv,
 } from '@/services/backup/fileIo'
-import { analytics } from '@/services/analytics'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
 import {
 	getNotificationClient,
 	safeSyncMedicationReminders,
@@ -79,8 +79,8 @@ export default function BackupScreen () {
 					: 'Сохраните файл в надёжном месте. Файл не зашифрован.',
 			)
 			await loadMeta()
-			analytics.trackEvent('backup_created', {
-				warnings: result.warnings.length,
+			analytics.trackEvent(AnalyticsEvents.BACKUP_CREATED, {
+				has_media: result.manifest.counts.media > 0,
 			})
 		} catch (error) {
 			if (error instanceof Error && error.name === 'BACKUP_BUSY') {
@@ -152,7 +152,7 @@ export default function BackupScreen () {
 				},
 			})
 			Alert.alert('Данные восстановлены', 'Аптечка загружена из резервной копии.')
-			analytics.trackEvent('backup_restored')
+			analytics.trackEvent(AnalyticsEvents.BACKUP_RESTORED)
 			await loadMeta()
 		} catch (error) {
 			if (error instanceof BackupValidationError) {
@@ -196,7 +196,6 @@ export default function BackupScreen () {
 			const result = await exportInventoryCsvBytes(executor)
 			tempUri = await writeTempCsv(result.filename, result.text)
 			await shareFileUri(tempUri)
-			analytics.trackEvent('csv_exported')
 		} catch (error) {
 			analytics.reportError(error, { source: 'Backup.csv' })
 			Alert.alert('Ошибка', 'Не удалось экспортировать список.')

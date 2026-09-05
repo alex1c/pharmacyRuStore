@@ -36,7 +36,7 @@ import {
 	Person,
 	ScheduleType,
 } from '@/db/types'
-import { analytics } from '@/services/analytics'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
 import { parseDoseInput } from '@/utils/dose'
 import { isDateOnly, isLocalTimeHm, toDateOnlyLocal } from '@/utils/dates'
 import { formatQuantity } from '@/utils/quantity'
@@ -300,6 +300,16 @@ export default function CourseFormScreen () {
 						...coursePayload,
 					},
 					schedules,
+				})
+				const scheduleType =
+					mode === 'every_n_days'
+						? 'interval'
+						: mode === 'prn'
+							? 'prn'
+							: mode
+				analytics.trackEvent(AnalyticsEvents.COURSE_CREATED, {
+					schedule_type: scheduleType,
+					reminders_enabled: Boolean(coursePayload.remindersEnabled),
 				})
 			}
 

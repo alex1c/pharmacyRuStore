@@ -16,6 +16,7 @@
     "verify": "npm run check"
   },
   "dependencies": {
+    "@appmetrica/react-native-analytics": "^4.1.0",
     "@expo/ui": "~57.0.16",
     "@expo/vector-icons": "^15.0.2",
     "expo": "~57.0.20",

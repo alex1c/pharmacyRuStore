@@ -8,7 +8,7 @@ import {
 } from '@/db/repositories/shoppingItems'
 import { SqlExecutor } from '@/db/sqlExecutor'
 import { MedicineSummary, ShoppingReason } from '@/db/types'
-import { analytics } from '@/services/analytics'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
 import { logger } from '@/services/logging'
 
 export interface SyncShoppingResult {
@@ -66,6 +66,9 @@ export async function syncAutomaticShoppingItems (
 					unit: needing.get(medicineId)?.summary.unit ?? null,
 				})
 				created += 1
+				analytics.trackEvent(AnalyticsEvents.SHOPPING_ITEM_ADDED, {
+					source: 'automatic',
+				})
 			} catch (error) {
 				// Unique index race: fetch and update instead.
 				const raced = await findActiveAutomaticForMedicine(db, medicineId)

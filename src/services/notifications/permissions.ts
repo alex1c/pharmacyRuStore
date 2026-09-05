@@ -1,5 +1,6 @@
 import { NotificationNativeClient, NotificationPermissionState } from './types'
 import { createExpoNotificationClient } from './nativeClient'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
 
 let clientOverride: NotificationNativeClient | null = null
 let cachedClient: NotificationNativeClient | null = null
@@ -48,5 +49,11 @@ export async function ensureReminderPermissionInteractive (): Promise<Notificati
 	if (current.status === 'denied' && !current.canAskAgain) {
 		return current
 	}
-	return requestNotificationPermissions()
+	const next = await requestNotificationPermissions()
+	if (next.status === 'granted') {
+		analytics.trackEvent(AnalyticsEvents.NOTIFICATION_PERMISSION_GRANTED)
+	} else if (next.status === 'denied') {
+		analytics.trackEvent(AnalyticsEvents.NOTIFICATION_PERMISSION_DENIED)
+	}
+	return next
 }

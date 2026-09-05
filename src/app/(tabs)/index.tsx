@@ -31,7 +31,7 @@ import {
 	listMedicineSummaries,
 } from '@/db/repositories/medicines'
 import { MedicineSummary, ScheduledOccurrence } from '@/db/types'
-import { analytics } from '@/services/analytics'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
 import { formatInstantHm } from '@/utils/formatRu'
 import { formatQuantityWithUnit } from '@/utils/quantity'
 import { toDateOnlyLocal } from '@/utils/dates'
@@ -152,6 +152,7 @@ export default function TodayScreen () {
 						{ allowShortfall },
 					)
 					await reload()
+					analytics.trackEvent(AnalyticsEvents.INTAKE_TAKEN)
 					Alert.alert(
 						'Отмечено',
 						`План: ${view.occurrence.scheduledTime} · принято в ${formatInstantHm(record.actualTakenAt ?? '')}`,
@@ -187,6 +188,7 @@ export default function TodayScreen () {
 		void withGuard(key, async () => {
 			const record = await markOccurrenceSkipped(executor, view.occurrence)
 			await reload()
+			analytics.trackEvent(AnalyticsEvents.INTAKE_SKIPPED)
 			Alert.alert('Пропущено', 'Отметку можно отменить.', [
 				{ text: 'OK' },
 				{
@@ -208,6 +210,9 @@ export default function TodayScreen () {
 					void withGuard(occurrenceKey(view.occurrence), async () => {
 						await snoozeOccurrence(executor, view.occurrence, 10)
 						await reload()
+						analytics.trackEvent(AnalyticsEvents.INTAKE_SNOOZED, {
+							minutes: 10,
+						})
 					})
 				},
 			},
@@ -217,6 +222,9 @@ export default function TodayScreen () {
 					void withGuard(occurrenceKey(view.occurrence), async () => {
 						await snoozeOccurrence(executor, view.occurrence, 30)
 						await reload()
+						analytics.trackEvent(AnalyticsEvents.INTAKE_SNOOZED, {
+							minutes: 30,
+						})
 					})
 				},
 			},
@@ -226,6 +234,9 @@ export default function TodayScreen () {
 					void withGuard(occurrenceKey(view.occurrence), async () => {
 						await snoozeOccurrence(executor, view.occurrence, 60)
 						await reload()
+						analytics.trackEvent(AnalyticsEvents.INTAKE_SNOOZED, {
+							minutes: 60,
+						})
 					})
 				},
 			},
@@ -245,6 +256,9 @@ export default function TodayScreen () {
 				pending.map((item) => item.occurrence),
 			)
 			await reload()
+			if (result.taken.length > 0) {
+				analytics.trackEvent(AnalyticsEvents.INTAKE_TAKEN)
+			}
 
 			if (result.shortfalls.length > 0) {
 				const first = result.shortfalls[0]

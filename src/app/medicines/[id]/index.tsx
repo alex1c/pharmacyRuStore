@@ -38,7 +38,7 @@ import { listSchedulesForCourse } from '@/db/repositories/medicationSchedules'
 import { getAppSettings } from '@/db/repositories/settings'
 import { getLocationById } from '@/db/repositories/storageLocations'
 import { MedicationCourse, MedicineBatch, MedicineSummary } from '@/db/types'
-import { analytics } from '@/services/analytics'
+import { AnalyticsEvents, analytics } from '@/services/analytics'
 import { formatScheduleSummary } from '@/domain/scheduleEngine'
 import { formatDateRu } from '@/utils/formatRu'
 import { formatExpiryDisplay, formatExpiryUntilLabel } from '@/utils/expiry'
@@ -140,6 +140,7 @@ export default function MedicineDetailScreen () {
 								return
 							}
 							await archiveMedicine(executor, id)
+							analytics.trackEvent(AnalyticsEvents.MEDICINE_ARCHIVED)
 							await safeSyncMedicationReminders(
 								executor,
 								seed.household.id,
