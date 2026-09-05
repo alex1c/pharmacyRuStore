@@ -22,6 +22,7 @@ import {
 } from '@/db/repositories/medicineCabinets'
 import { MedicineCabinet } from '@/db/types'
 import { analytics } from '@/services/analytics'
+import { adsService } from '@/services/ads'
 
 /**
  * Manage home medicine cabinets (create / rename / safe archive).
@@ -63,6 +64,7 @@ export default function CabinetsScreen () {
 			setName('')
 			setEditingId(null)
 			await load()
+			adsService.maybeShowInterstitial('storage_saved')
 		} catch (err) {
 			analytics.reportError(err, { source: 'CabinetsScreen.save' })
 			Alert.alert('Ошибка', 'Не удалось сохранить аптечку.')

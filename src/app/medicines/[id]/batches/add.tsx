@@ -28,6 +28,7 @@ import {
 	StorageLocation,
 } from '@/db/types'
 import { AnalyticsEvents, analytics } from '@/services/analytics'
+import { adsService } from '@/services/ads'
 import { isDateOnly } from '@/utils/dates'
 import { ExpiryPrecision, getExpiryPrecision, normalizeExpiryInput } from '@/utils/expiry'
 import { parseQuantityInput } from '@/utils/quantity'
@@ -235,6 +236,9 @@ export default function AddBatchScreen () {
 						: 'manual',
 			})
 			clearPendingScan()
+			adsService.maybeShowInterstitial(
+				shoppingItemId ? 'shopping_completed' : 'batch_saved',
+			)
 			router.back()
 		} catch (error) {
 			analytics.reportError(error, { source: 'AddBatch.save' })

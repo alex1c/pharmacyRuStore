@@ -36,6 +36,8 @@ import { MedicineCabinet, MedicineSummary } from '@/db/types'
 import { analytics } from '@/services/analytics'
 import { medicineListStatusLine } from '@/utils/statusCopy'
 import { formatQuantityWithUnit } from '@/utils/quantity'
+import { AppBannerAd } from '@/components/ads/AppBannerAd'
+import { adsService } from '@/services/ads'
 
 /**
  * Main inventory tab with attention-aware statuses.
@@ -78,6 +80,7 @@ export default function CabinetScreen () {
 	useFocusEffect(
 		useCallback(() => {
 			analytics.trackScreen('cabinet')
+			adsService.recordMeaningfulAction('screen_browse')
 			void load()
 		}, [load]),
 	)
@@ -220,6 +223,7 @@ export default function CabinetScreen () {
 				}}
 				style={styles.fab}
 			/>
+			<AppBannerAd placement="cabinet" />
 		</Screen>
 	)
 }

@@ -29,6 +29,7 @@ import {
 	StorageLocation,
 } from '@/db/types'
 import { analytics } from '@/services/analytics'
+import { adsService } from '@/services/ads'
 import { isDateOnly } from '@/utils/dates'
 import {
 	ExpiryPrecision,
@@ -169,6 +170,7 @@ export default function EditBatchScreen () {
 			})
 			// Quantity changes affect low/empty shopping reconciliation.
 			await safeSyncAutomaticShoppingItems(executor, seed.household.id)
+			adsService.maybeShowInterstitial('batch_saved')
 			router.back()
 		} catch (error) {
 			analytics.reportError(error, { source: 'EditBatch.save' })

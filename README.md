@@ -159,8 +159,16 @@ Inventory / intake flows (stack):
 - Production API key centralized; activate once at cold start
 - Privacy-safe typed event taxonomy + runtime allowlist sanitization
 - No medicine names, person names, raw codes, or intake contents in analytics
-- Yandex Ads / РСЯ deferred to Phase 8B
 - See [`docs/DATA_SAFETY.md`](docs/DATA_SAFETY.md) and [`docs/privacy.html`](docs/privacy.html)
+
+### Ads — Yandex Mobile Ads / РСЯ (Phase 8B)
+
+- `yandex-mobile-ads` native SDK; production banner + interstitial units
+- Feed unit reserved/disabled in v1
+- Banners on cabinet / shopping / more / history only
+- Interstitial: delayed, max 1/session, never on intake/medical flows
+- Dev: ads off by default (no production impressions)
+- See [`docs/ADS_POLICY.md`](docs/ADS_POLICY.md)
 
 ## Git workflow
 
@@ -181,9 +189,9 @@ Inventory / intake flows (stack):
 | Phase 5 | Покупки и семья |
 | Phase 6 | Scanning |
 | Phase 7 | Backup / restore |
-| Phase 8A | AppMetrica (**current**) |
-| Phase 8B | Yandex Ads / РСЯ |
-| Phase 9 | Release |
+| Phase 8A | AppMetrica |
+| Phase 8B | Yandex Ads / РСЯ (**current**) |
+| Phase 9 | Release / assets |
 
 ## Current status
 

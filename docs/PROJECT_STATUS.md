@@ -2,7 +2,7 @@
 
 ## Current phase
 
-**Phase 8A — Production AppMetrica** (complete)
+**Phase 8B — Production Yandex Ads** (complete after validation)
 
 ## Completed
 
@@ -10,17 +10,16 @@
 Foundation through backup/restore (schema v1–v7).
 
 ### Phase 8A
-- `@appmetrica/react-native-analytics` 4.1.0 integrated (Expo SDK 57 / RN 0.86)
-- Production API key centralized (`src/constants/analyticsConfig.ts` + `app.json` extra)
-- One-time activation at cold bootstrap; analytics failures never block app/business flows
-- Typed privacy-safe event taxonomy + runtime parameter allowlist
-- Screen tracking with consecutive-dedupe; single `app_open` per cold start
-- Privacy docs updated; `docs/DATA_SAFETY.md` prepared for RuStore questionnaires
-- Ads / РСЯ still deferred to Phase 8B
+- AppMetrica production analytics, privacy-safe taxonomy, DATA_SAFETY baseline
 
-## Phase 4 note
-
-Functional native reminders confirmed in prior checkpoint; extended native matrix deferred to final release QA.
+### Phase 8B
+- `yandex-mobile-ads` 8.4.0 integrated (native `mobileads:8.4.0`)
+- Production banner `R-M-19988985-1` + interstitial `R-M-19988985-2`
+- Feed `R-M-19988985-3` reserved/disabled
+- Banner placements: cabinet, shopping, more, history
+- Interstitial: delayed eligibility, max 1/session, medical exclusions
+- Dev default: no production ad impressions
+- Privacy / DATA_SAFETY / ADS_POLICY updated
 
 ## Known issues
 
@@ -28,25 +27,20 @@ Functional native reminders confirmed in prior checkpoint; extended native matri
 - Exact alarm special access may be denied on Android 14+ by default
 - Physical-device barcode scan QA deferred
 - Backup ZIP is not encrypted
+- Production ad load QA deferred to device/release (avoid production impressions in Cursor)
 
 ## Deferred
 
-- Yandex Mobile Ads / РСЯ (Phase 8B)
-- Final icon / screenshots / release signing (Phase 9)
+- Phase 9 — final icon, RuStore screenshots, release build, production ad/device QA
 - Extended native notification matrix
 - Remote medicine catalogue enrichment
 - Optional encrypted backup
+- Feed ad format
 
 ## Next checkpoint
 
-Phase 8B — Yandex Ads production integration (do not start until requested)
+Phase 9 — release & assets (do not start until requested)
 
 ## Last verified commit SHA
 
-(see git after Phase 8A push)
-
-## Permissions note (Phase 8A build)
-
-Merged debug manifest after AppMetrica: no `AD_ID`, location, contacts, mic, phone, or SMS.
-AppMetrica-related additions observed: `AppMetricaService` / preload ContentProvider, install-referrer binder permission (Finsky), plus standard network state usage via analytics stack.
-Advertising-identifiers module excluded via `withAppMetricaNoAdId` plugin.
+(see git after Phase 8B push)

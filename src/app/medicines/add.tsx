@@ -47,6 +47,7 @@ import {
 } from '@/db/types'
 import { pickAndStoreMedicinePhoto } from '@/services/medicineMedia'
 import { AnalyticsEvents, analytics } from '@/services/analytics'
+import { adsService } from '@/services/ads'
 import {
 	ExpiryPrecision,
 	getExpiryPrecision,
@@ -265,6 +266,7 @@ export default function AddMedicineScreen () {
 			}
 			await safeSyncAutomaticShoppingItems(executor, seed.household.id)
 			clearPendingScan()
+			adsService.maybeShowInterstitial('medicine_saved')
 			router.replace(`/medicines/${result.medicine.id}`)
 		} catch (error) {
 			analytics.reportError(error, { source: 'AddMedicine.save' })

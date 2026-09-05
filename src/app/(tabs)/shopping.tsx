@@ -40,6 +40,8 @@ import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 import { Medicine, ShoppingItem } from '@/db/types'
 import { analytics } from '@/services/analytics'
 import { formatQuantityWithUnit } from '@/utils/quantity'
+import { AppBannerAd } from '@/components/ads/AppBannerAd'
+import { adsService } from '@/services/ads'
 
 interface ShoppingView {
 	item: ShoppingItem
@@ -143,6 +145,7 @@ export default function ShoppingScreen () {
 	useFocusEffect(
 		useCallback(() => {
 			analytics.trackScreen('shopping')
+			adsService.recordMeaningfulAction('screen_browse')
 			void load()
 		}, [load]),
 	)
@@ -222,7 +225,10 @@ export default function ShoppingScreen () {
 			{
 				text: 'Просто отметить купленным',
 				onPress: () => {
-					void markPurchasedSimple(executor, view.item.id).then(() => load())
+					void markPurchasedSimple(executor, view.item.id).then(() => {
+						void load()
+						adsService.maybeShowInterstitial('shopping_completed')
+					})
 				},
 			},
 			{
@@ -360,6 +366,7 @@ export default function ShoppingScreen () {
 					</Card>
 				))
 				: null}
+			<AppBannerAd placement="shopping" />
 		</Screen>
 	)
 }

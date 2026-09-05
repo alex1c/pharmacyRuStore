@@ -9,6 +9,7 @@ import {
 	initializeAnalytics,
 	trackAppOpenOnce,
 } from '@/services/analytics'
+import { initializeAds, adsService } from '@/services/ads'
 import { logger } from '@/services/logging'
 import {
 	configureForegroundNotificationHandler,
@@ -56,6 +57,8 @@ export function useAppBootstrap (): BootstrapState {
 				setStatus('ready')
 				// One logical cold-start open — not on every foreground bounce.
 				trackAppOpenOnce()
+				// Ads after core ready — never block startup.
+				void initializeAds()
 				logger.info('Database bootstrap complete', {
 					schemaVersion: initialized.schemaVersion,
 					seeded: initialized.seed.seeded,
@@ -131,6 +134,7 @@ export function useAppBootstrap (): BootstrapState {
 		const subscription = Notifications.addNotificationResponseReceivedListener(
 			() => {
 				try {
+					adsService.recordMedicalAction('notification_open')
 					router.push('/(tabs)')
 				} catch (error) {
 					analytics.reportError(error, {

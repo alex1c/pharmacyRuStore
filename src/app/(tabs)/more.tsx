@@ -11,6 +11,8 @@ import {
 } from '@/components/ui'
 import { HEALTH_DISCLAIMER, moreRows, tabs } from '@/constants/copy'
 import { colors, typography } from '@/constants/theme'
+import { AppBannerAd } from '@/components/ads/AppBannerAd'
+import { adsService } from '@/services/ads'
 import { analytics } from '@/services/analytics'
 
 /**
@@ -19,6 +21,7 @@ import { analytics } from '@/services/analytics'
 export default function MoreScreen () {
 	useEffect(() => {
 		analytics.trackScreen('more')
+		adsService.recordMeaningfulAction('screen_browse')
 	}, [])
 
 	return (
@@ -77,6 +80,7 @@ export default function MoreScreen () {
 			<Card>
 				<Text style={styles.disclaimer}>{HEALTH_DISCLAIMER}</Text>
 			</Card>
+			<AppBannerAd placement="more" />
 		</Screen>
 	)
 }

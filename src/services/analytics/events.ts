@@ -22,6 +22,11 @@ export const AnalyticsEvents = {
 	BACKUP_RESTORED: 'backup_restored',
 	NOTIFICATION_PERMISSION_GRANTED: 'notification_permission_granted',
 	NOTIFICATION_PERMISSION_DENIED: 'notification_permission_denied',
+	AD_BANNER_LOADED: 'ad_banner_loaded',
+	AD_BANNER_FAILED: 'ad_banner_failed',
+	AD_INTERSTITIAL_LOADED: 'ad_interstitial_loaded',
+	AD_INTERSTITIAL_SHOWN: 'ad_interstitial_shown',
+	AD_INTERSTITIAL_FAILED: 'ad_interstitial_failed',
 } as const
 
 export type AnalyticsEventName =
@@ -47,6 +52,12 @@ export type ScanCodeTypeParam =
 export type ShoppingAddSource = 'automatic' | 'manual'
 export type ShoppingCompleteType = 'medicine' | 'custom'
 export type SnoozeMinutes = 10 | 30 | 60
+export type AdBannerPlacementParam =
+	| 'cabinet'
+	| 'shopping'
+	| 'more'
+	| 'history'
+export type AdFormatParam = 'banner' | 'interstitial'
 
 /**
  * Typed parameter maps — TypeScript rejects medicineName / rawCode etc.
@@ -73,6 +84,17 @@ export type AnalyticsEventParams = {
 	[AnalyticsEvents.BACKUP_RESTORED]: Record<string, never>
 	[AnalyticsEvents.NOTIFICATION_PERMISSION_GRANTED]: Record<string, never>
 	[AnalyticsEvents.NOTIFICATION_PERMISSION_DENIED]: Record<string, never>
+	[AnalyticsEvents.AD_BANNER_LOADED]: {
+		placement: AdBannerPlacementParam
+		format: 'banner'
+	}
+	[AnalyticsEvents.AD_BANNER_FAILED]: {
+		placement: AdBannerPlacementParam
+		format: 'banner'
+	}
+	[AnalyticsEvents.AD_INTERSTITIAL_LOADED]: { format: 'interstitial' }
+	[AnalyticsEvents.AD_INTERSTITIAL_SHOWN]: { format: 'interstitial' }
+	[AnalyticsEvents.AD_INTERSTITIAL_FAILED]: { format: 'interstitial' }
 }
 
 /** Allowlisted param keys per event (runtime defense in depth). */
@@ -97,6 +119,11 @@ export const EVENT_PARAM_ALLOWLIST: {
 	backup_restored: [],
 	notification_permission_granted: [],
 	notification_permission_denied: [],
+	ad_banner_loaded: ['placement', 'format'],
+	ad_banner_failed: ['placement', 'format'],
+	ad_interstitial_loaded: ['format'],
+	ad_interstitial_shown: ['format'],
+	ad_interstitial_failed: ['format'],
 }
 
 export const AnalyticsScreens = [

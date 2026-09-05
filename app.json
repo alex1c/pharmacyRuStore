@@ -79,10 +79,13 @@
         "enableInDev": false
       },
       "ads": {
-        "provider": "noop",
-        "enabled": false,
-        "bannerUnitId": null,
-        "interstitialUnitId": null
+        "provider": "yandex",
+        "enabled": true,
+        "bannerUnitId": "R-M-19988985-1",
+        "interstitialUnitId": "R-M-19988985-2",
+        "feedUnitId": "R-M-19988985-3",
+        "feedEnabled": false,
+        "enableDemoInDev": false
       }
     }
   }

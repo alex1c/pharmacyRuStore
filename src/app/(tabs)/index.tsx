@@ -32,6 +32,7 @@ import {
 } from '@/db/repositories/medicines'
 import { MedicineSummary, ScheduledOccurrence } from '@/db/types'
 import { AnalyticsEvents, analytics } from '@/services/analytics'
+import { adsService } from '@/services/ads'
 import { formatInstantHm } from '@/utils/formatRu'
 import { formatQuantityWithUnit } from '@/utils/quantity'
 import { toDateOnlyLocal } from '@/utils/dates'
@@ -153,6 +154,7 @@ export default function TodayScreen () {
 					)
 					await reload()
 					analytics.trackEvent(AnalyticsEvents.INTAKE_TAKEN)
+					adsService.recordMedicalAction('intake_taken')
 					Alert.alert(
 						'Отмечено',
 						`План: ${view.occurrence.scheduledTime} · принято в ${formatInstantHm(record.actualTakenAt ?? '')}`,
@@ -189,6 +191,7 @@ export default function TodayScreen () {
 			const record = await markOccurrenceSkipped(executor, view.occurrence)
 			await reload()
 			analytics.trackEvent(AnalyticsEvents.INTAKE_SKIPPED)
+			adsService.recordMedicalAction('intake_skipped')
 			Alert.alert('Пропущено', 'Отметку можно отменить.', [
 				{ text: 'OK' },
 				{
@@ -213,6 +216,7 @@ export default function TodayScreen () {
 						analytics.trackEvent(AnalyticsEvents.INTAKE_SNOOZED, {
 							minutes: 10,
 						})
+						adsService.recordMedicalAction('intake_snoozed')
 					})
 				},
 			},
@@ -225,6 +229,7 @@ export default function TodayScreen () {
 						analytics.trackEvent(AnalyticsEvents.INTAKE_SNOOZED, {
 							minutes: 30,
 						})
+						adsService.recordMedicalAction('intake_snoozed')
 					})
 				},
 			},
@@ -237,6 +242,7 @@ export default function TodayScreen () {
 						analytics.trackEvent(AnalyticsEvents.INTAKE_SNOOZED, {
 							minutes: 60,
 						})
+						adsService.recordMedicalAction('intake_snoozed')
 					})
 				},
 			},

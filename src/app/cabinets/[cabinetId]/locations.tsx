@@ -21,6 +21,7 @@ import {
 } from '@/db/repositories/storageLocations'
 import { StorageLocation } from '@/db/types'
 import { analytics } from '@/services/analytics'
+import { adsService } from '@/services/ads'
 
 export default function CabinetLocationsScreen () {
 	const { cabinetId } = useLocalSearchParams<{ cabinetId: string }>()
@@ -69,6 +70,7 @@ export default function CabinetLocationsScreen () {
 			setName('')
 			setEditingId(null)
 			await load()
+			adsService.maybeShowInterstitial('storage_saved')
 		} catch (err) {
 			analytics.reportError(err, { source: 'LocationsScreen.save' })
 			Alert.alert('Ошибка', 'Не удалось сохранить место хранения.')

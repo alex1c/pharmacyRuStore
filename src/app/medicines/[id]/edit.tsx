@@ -23,6 +23,7 @@ import { MedicineForm } from '@/db/types'
 import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 import { pickAndStoreMedicinePhoto } from '@/services/medicineMedia'
 import { analytics } from '@/services/analytics'
+import { adsService } from '@/services/ads'
 import { parseQuantityInput } from '@/utils/quantity'
 
 export default function EditMedicineScreen () {
@@ -99,6 +100,7 @@ export default function EditMedicineScreen () {
 			})
 			// Threshold overrides can create/complete automatic shopping rows.
 			await safeSyncAutomaticShoppingItems(executor, seed.household.id)
+			adsService.maybeShowInterstitial('medicine_saved')
 			router.back()
 		} catch (error) {
 			analytics.reportError(error, { source: 'EditMedicine.save' })
