@@ -104,6 +104,27 @@ export interface Medicine {
 	archivedAt: string | null
 }
 
+/** Persisted barcode / GTIN identifier kinds for local matching. */
+export type MedicineCodeType =
+	| 'ean13'
+	| 'ean8'
+	| 'upc_a'
+	| 'upc_e'
+	| 'code128'
+	| 'qr'
+	| 'datamatrix'
+	| 'gtin'
+	| 'unknown'
+
+export interface MedicineCode {
+	id: string
+	medicineId: string
+	codeType: MedicineCodeType
+	/** Normalized string — never a JS number (preserve leading zeros). */
+	codeValue: string
+	createdAt: string
+}
+
 export interface MedicineBatch {
 	id: string
 	medicineId: string
@@ -117,6 +138,12 @@ export interface MedicineBatch {
 	afterOpeningUnit: AfterOpeningUnit | null
 	purchaseDate: string | null
 	notes: string | null
+	/** Optional pack lot from GS1 AI (10). */
+	lotNumber: string | null
+	/** Optional pack serial from GS1 AI (21). Local only. */
+	serialNumber: string | null
+	/** Raw scanned payload for this pack (local only, never analytics). */
+	scannedCodeRaw: string | null
 	createdAt: string
 	updatedAt: string
 	archivedAt: string | null

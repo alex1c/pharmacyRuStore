@@ -4,6 +4,7 @@ import {
 	Image,
 	KeyboardAvoidingView,
 	Platform,
+	Pressable,
 	StyleSheet,
 	Text,
 	View,
@@ -25,11 +26,20 @@ import { colors, radii, spacing, typography } from '@/constants/theme'
 import { useDatabase } from '@/context/DatabaseContext'
 import { listCabinetsByHousehold } from '@/db/repositories/medicineCabinets'
 import { createMedicineWithFirstBatch } from '@/db/repositories/inventory'
+import { listMedicines } from '@/db/repositories/medicines'
 import { listLocationsByCabinet } from '@/db/repositories/storageLocations'
+import {
+	findLikelyDuplicateMedicines,
+	findMedicineNameSuggestions,
+} from '@/domain/duplicateMedicine'
 import { markPurchasedSimple } from '@/domain/purchaseService'
+import { listRecentMedicinesByBatch } from '@/domain/recentMedicines'
+import { attachScanCodesToMedicine } from '@/domain/scanService'
+import { clearPendingScan, peekPendingScan } from '@/domain/scanSession'
 import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 import {
 	AfterOpeningUnit,
+	Medicine,
 	MedicineCabinet,
 	MedicineForm,
 	MedicineUnit,
@@ -37,7 +47,11 @@ import {
 } from '@/db/types'
 import { pickAndStoreMedicinePhoto } from '@/services/medicineMedia'
 import { analytics } from '@/services/analytics'
-import { ExpiryPrecision, normalizeExpiryInput } from '@/utils/expiry'
+import {
+	ExpiryPrecision,
+	getExpiryPrecision,
+	normalizeExpiryInput,
+} from '@/utils/expiry'
 import { parseQuantityInput } from '@/utils/quantity'
 import { isDateOnly } from '@/utils/dates'
 
@@ -48,10 +62,17 @@ export default function AddMedicineScreen () {
 	const params = useLocalSearchParams<{
 		prefillName?: string
 		shoppingItemId?: string
+		attachScan?: string
+		prefillExpiry?: string
+		prefillLot?: string
+		prefillSerial?: string
+		scannedCodeRaw?: string
 	}>()
 	const { executor, seed } = useDatabase()
 	const [cabinets, setCabinets] = useState<MedicineCabinet[]>([])
 	const [locations, setLocations] = useState<StorageLocation[]>([])
+	const [allMedicines, setAllMedicines] = useState<Medicine[]>([])
+	const [recent, setRecent] = useState<Medicine[]>([])
 	const [saving, setSaving] = useState(false)
 
 	const [name, setName] = useState(params.prefillName ?? '')
@@ -74,6 +95,8 @@ export default function AddMedicineScreen () {
 	const [afterOpeningUnit, setAfterOpeningUnit] =
 		useState<AfterOpeningUnit>('days')
 	const [batchNotes, setBatchNotes] = useState('')
+	const [lotNumber, setLotNumber] = useState(params.prefillLot ?? '')
+	const [serialNumber, setSerialNumber] = useState(params.prefillSerial ?? '')
 
 	const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -85,8 +108,23 @@ export default function AddMedicineScreen () {
 			if (next[0]) {
 				setCabinetId(next[0].id)
 			}
+			const medicines = await listMedicines(executor, {
+				householdId: seed.household.id,
+			})
+			setAllMedicines(medicines.filter((item) => !item.archivedAt))
+			setRecent(await listRecentMedicinesByBatch(executor, seed.household.id))
+
+			if (params.prefillExpiry) {
+				const precision = getExpiryPrecision(params.prefillExpiry)
+				setExpiryPrecision(precision)
+				if (precision === 'year-month') {
+					setExpiryYearMonth(params.prefillExpiry)
+				} else if (precision === 'date') {
+					setExpiryDate(params.prefillExpiry)
+				}
+			}
 		})()
-	}, [executor, seed.household.id])
+	}, [executor, params.prefillExpiry, seed.household.id])
 
 	useEffect(() => {
 		if (!cabinetId) {
@@ -106,6 +144,10 @@ export default function AddMedicineScreen () {
 	}, [cabinetId, executor])
 
 	const canSave = useMemo(() => name.trim().length > 0, [name])
+	const suggestions = useMemo(
+		() => findMedicineNameSuggestions(allMedicines, name),
+		[allMedicines, name],
+	)
 
 	async function handlePickPhoto () {
 		try {
@@ -119,7 +161,7 @@ export default function AddMedicineScreen () {
 		}
 	}
 
-	async function handleSave () {
+	async function persistNewMedicine () {
 		const nextErrors: Record<string, string> = {}
 		if (!name.trim()) {
 			nextErrors.name = 'Укажите название'
@@ -171,6 +213,7 @@ export default function AddMedicineScreen () {
 
 		setSaving(true)
 		try {
+			const session = peekPendingScan()
 			const result = await createMedicineWithFirstBatch(
 				executor,
 				{
@@ -192,8 +235,27 @@ export default function AddMedicineScreen () {
 					afterOpeningValue: afterValue,
 					afterOpeningUnit: afterValue ? afterOpeningUnit : null,
 					notes: batchNotes,
+					lotNumber: lotNumber.trim() || null,
+					serialNumber: serialNumber.trim() || null,
+					scannedCodeRaw:
+						params.scannedCodeRaw || session?.scanned.rawData || null,
 				},
 			)
+
+			if (params.attachScan === '1' && session) {
+				try {
+					await attachScanCodesToMedicine(
+						executor,
+						session,
+						result.medicine.id,
+					)
+				} catch (error) {
+					if (!(error instanceof Error && error.name === 'CODE_CONFLICT')) {
+						throw error
+					}
+				}
+			}
+
 			analytics.trackEvent('medicine_created', {
 				hasPhoto: Boolean(photoUri),
 			})
@@ -201,6 +263,7 @@ export default function AddMedicineScreen () {
 				await markPurchasedSimple(executor, params.shoppingItemId)
 			}
 			await safeSyncAutomaticShoppingItems(executor, seed.household.id)
+			clearPendingScan()
 			router.replace(`/medicines/${result.medicine.id}`)
 		} catch (error) {
 			analytics.reportError(error, { source: 'AddMedicine.save' })
@@ -210,6 +273,39 @@ export default function AddMedicineScreen () {
 		}
 	}
 
+	async function handleSave () {
+		const duplicates = findLikelyDuplicateMedicines(allMedicines, {
+			name,
+			strengthText,
+		})
+		if (duplicates.length > 0) {
+			const first = duplicates[0].medicine
+			Alert.alert(
+				'Похожее лекарство уже есть',
+				first.strengthText
+					? `${first.name} · ${first.strengthText}`
+					: first.name,
+				[
+					{ text: 'Отмена', style: 'cancel' },
+					{
+						text: 'Добавить упаковку',
+						onPress: () => {
+							router.replace(`/medicines/${first.id}/batches/add`)
+						},
+					},
+					{
+						text: 'Всё равно создать',
+						onPress: () => {
+							void persistNewMedicine()
+						},
+					},
+				],
+			)
+			return
+		}
+		await persistNewMedicine()
+	}
+
 	return (
 		<Screen scroll>
 			<ScreenTopBar title="Новое лекарство" />
@@ -217,6 +313,24 @@ export default function AddMedicineScreen () {
 				behavior={Platform.OS === 'ios' ? 'padding' : undefined}
 			>
 				<View style={styles.scrollWrap}>
+					{recent.length > 0 ? (
+						<>
+							<Text style={styles.section}>Недавние лекарства</Text>
+							{recent.map((medicine) => (
+								<Pressable
+									key={medicine.id}
+									onPress={() => {
+										router.replace(`/medicines/${medicine.id}/batches/add`)
+									}}
+									style={styles.recentRow}
+								>
+									<Text style={styles.recentTitle}>{medicine.name}</Text>
+									<Text style={styles.recentMeta}>Добавить упаковку</Text>
+								</Pressable>
+							))}
+						</>
+					) : null}
+
 					<Text style={styles.section}>Лекарство</Text>
 					<TextField
 						label="Название"
@@ -226,6 +340,23 @@ export default function AddMedicineScreen () {
 						error={errors.name}
 						autoFocus
 					/>
+					{suggestions.length > 0 ? (
+						<View style={styles.suggestBox}>
+							<Text style={styles.suggestTitle}>
+								Возможно, это уже есть в аптечке
+							</Text>
+							{suggestions.map((medicine) => (
+								<SecondaryButton
+									key={medicine.id}
+									label={`Добавить упаковку · ${medicine.name}`}
+									onPress={() => {
+										router.replace(`/medicines/${medicine.id}/batches/add`)
+									}}
+									style={styles.suggestBtn}
+								/>
+							))}
+						</View>
+					) : null}
 					<ChipGroup label="Форма">
 						{MEDICINE_FORMS.map((item) => (
 							<ChoiceChip
@@ -373,6 +504,18 @@ export default function AddMedicineScreen () {
 						))}
 					</ChipGroup>
 					<TextField
+						label="Серия / лот"
+						value={lotNumber}
+						onChangeText={setLotNumber}
+						placeholder="Необязательно"
+					/>
+					<TextField
+						label="Серийный номер"
+						value={serialNumber}
+						onChangeText={setSerialNumber}
+						placeholder="Необязательно"
+					/>
+					<TextField
 						label="Заметка к упаковке"
 						value={batchNotes}
 						onChangeText={setBatchNotes}
@@ -415,5 +558,31 @@ const styles = StyleSheet.create({
 	save: {
 		marginTop: spacing.md,
 		marginBottom: spacing.xl,
+	},
+	recentRow: {
+		paddingVertical: spacing.sm,
+		borderBottomWidth: StyleSheet.hairlineWidth,
+		borderBottomColor: colors.border,
+	},
+	recentTitle: {
+		...typography.body,
+		color: colors.text,
+		fontWeight: '600',
+	},
+	recentMeta: {
+		...typography.caption,
+		color: colors.textSecondary,
+	},
+	suggestBox: {
+		marginBottom: spacing.md,
+		gap: spacing.xs,
+	},
+	suggestTitle: {
+		...typography.caption,
+		color: colors.textSecondary,
+		marginBottom: spacing.xs,
+	},
+	suggestBtn: {
+		alignSelf: 'stretch',
 	},
 })

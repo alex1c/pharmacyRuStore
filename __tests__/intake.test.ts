@@ -52,6 +52,9 @@ describe('FEFO planner', () => {
 			afterOpeningUnit: null,
 			purchaseDate: null,
 			notes: null,
+			lotNumber: null,
+			serialNumber: null,
+			scannedCodeRaw: null,
 			createdAt: '2026-01-01T00:00:00.000Z',
 			updatedAt: '2026-01-01T00:00:00.000Z',
 			archivedAt: null,
@@ -90,7 +93,7 @@ describe('intake service', () => {
 	async function setup () {
 		const db = createTestSqlExecutor()
 		await applyMigrations(db)
-		expect(getLatestSchemaVersion()).toBe(6)
+		expect(getLatestSchemaVersion()).toBe(7)
 		const seed = await ensureFirstRunDefaults(db)
 		const medicine = await createMedicine(db, {
 			householdId: seed.household.id,

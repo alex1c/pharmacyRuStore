@@ -101,6 +101,12 @@ export default function RootLayout () {
 					/>
 					<Stack.Screen name="family/index" options={{ headerShown: false }} />
 					<Stack.Screen name="courses/form" options={{ headerShown: false }} />
+					<Stack.Screen name="scan/index" options={{ headerShown: false }} />
+					<Stack.Screen name="scan/result" options={{ headerShown: false }} />
+					<Stack.Screen
+						name="scan/select-medicine"
+						options={{ headerShown: false }}
+					/>
 				</Stack>
 				</DatabaseProvider>
 			</AppErrorBoundary>

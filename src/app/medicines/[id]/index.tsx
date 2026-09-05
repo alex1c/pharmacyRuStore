@@ -398,6 +398,15 @@ export default function MedicineDetailScreen () {
 										: ''}
 								</Text>
 							) : null}
+							{batch.lotNumber || batch.serialNumber ? (
+								<Text style={styles.packExtra}>
+									Данные упаковки
+									{batch.lotNumber ? `: серия ${batch.lotNumber}` : ''}
+									{batch.serialNumber
+										? `${batch.lotNumber ? ' · ' : ': '}s/n ${batch.serialNumber}`
+										: ''}
+								</Text>
+							) : null}
 							{statusText ? (
 								<Text
 									style={

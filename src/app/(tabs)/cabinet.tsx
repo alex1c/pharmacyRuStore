@@ -204,8 +204,20 @@ export default function CabinetScreen () {
 			) : null}
 
 			<PrimaryButton
-				label="+ Добавить лекарство"
-				onPress={() => router.push('/medicines/add')}
+				label="+ Добавить"
+				onPress={() => {
+					Alert.alert('Добавить', 'Как добавить лекарство?', [
+						{ text: 'Отмена', style: 'cancel' },
+						{
+							text: 'Сканировать',
+							onPress: () => router.push('/scan/index'),
+						},
+						{
+							text: 'Добавить вручную',
+							onPress: () => router.push('/medicines/add'),
+						},
+					])
+				}}
 				style={styles.fab}
 			/>
 		</Screen>

@@ -20,9 +20,18 @@ Checklist to re-verify before RuStore publication after AppMetrica / РСЯ are 
 - No interstitial during intake confirmation
 - Offline core features must keep working if ads/analytics fail
 
+## Camera & scanning (Phase 6)
+
+- Camera is used **only** for barcode/QR/DataMatrix scanning after the user opens the scanner
+- Scanned codes (including GTIN / lot / serial) stay **local** in SQLite
+- Analytics must not include raw codes, GTIN, serial, or medicine names (`scan_success` / `scan_failed` only)
+- No upload of scanned codes to external services in the current version
+- Gallery photo pick for medicine images remains separate from scanner camera permission
+
 ## Do not claim until true
 
 - Cloud sync
 - Account registration
 - Transmission of medicine lists to our servers
 - Medical advice / diagnosis capabilities
+- Remote medicine catalogue / Честный знак live lookup

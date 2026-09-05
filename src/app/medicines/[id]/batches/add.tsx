@@ -18,6 +18,8 @@ import { listCabinetsByHousehold } from '@/db/repositories/medicineCabinets'
 import { getMedicineById } from '@/db/repositories/medicines'
 import { listLocationsByCabinet } from '@/db/repositories/storageLocations'
 import { markPurchasedWithBatch } from '@/domain/purchaseService'
+import { attachScanCodesToMedicine } from '@/domain/scanService'
+import { peekPendingScan, clearPendingScan } from '@/domain/scanSession'
 import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 import {
 	AfterOpeningUnit,
@@ -27,13 +29,26 @@ import {
 } from '@/db/types'
 import { analytics } from '@/services/analytics'
 import { isDateOnly } from '@/utils/dates'
-import { ExpiryPrecision, normalizeExpiryInput } from '@/utils/expiry'
+import { ExpiryPrecision, getExpiryPrecision, normalizeExpiryInput } from '@/utils/expiry'
 import { parseQuantityInput } from '@/utils/quantity'
 
 export default function AddBatchScreen () {
-	const { id, shoppingItemId } = useLocalSearchParams<{
+	const {
+		id,
+		shoppingItemId,
+		prefillExpiry,
+		prefillLot,
+		prefillSerial,
+		scannedCodeRaw,
+		attachScan,
+	} = useLocalSearchParams<{
 		id: string
 		shoppingItemId?: string
+		prefillExpiry?: string
+		prefillLot?: string
+		prefillSerial?: string
+		scannedCodeRaw?: string
+		attachScan?: string
 	}>()
 	const { executor, seed } = useDatabase()
 	const [cabinets, setCabinets] = useState<MedicineCabinet[]>([])
@@ -52,6 +67,8 @@ export default function AddBatchScreen () {
 	const [afterOpeningUnit, setAfterOpeningUnit] =
 		useState<AfterOpeningUnit>('days')
 	const [notes, setNotes] = useState('')
+	const [lotNumber, setLotNumber] = useState(prefillLot ?? '')
+	const [serialNumber, setSerialNumber] = useState(prefillSerial ?? '')
 	const [errors, setErrors] = useState<Record<string, string>>({})
 	const [saving, setSaving] = useState(false)
 
@@ -77,7 +94,6 @@ export default function AddBatchScreen () {
 			if (prefill) {
 				setCabinetId(prefill.cabinetId)
 				setUnit(prefill.unit)
-				// Location is applied after locations for this cabinet load.
 				setLocationId(prefill.storageLocationId)
 			} else {
 				if (medicine.form === 'tablet') {
@@ -89,8 +105,19 @@ export default function AddBatchScreen () {
 					setCabinetId(nextCabinets[0].id)
 				}
 			}
+
+			// Prefill expiry from GS1 when available — user still reviews before save.
+			if (prefillExpiry) {
+				const precision = getExpiryPrecision(prefillExpiry)
+				setExpiryPrecision(precision)
+				if (precision === 'year-month') {
+					setExpiryYearMonth(prefillExpiry)
+				} else if (precision === 'date') {
+					setExpiryDate(prefillExpiry)
+				}
+			}
 		})()
-	}, [executor, id, seed.household.id])
+	}, [executor, id, prefillExpiry, seed.household.id])
 
 	useEffect(() => {
 		if (!cabinetId) {
@@ -151,6 +178,19 @@ export default function AddBatchScreen () {
 
 		setSaving(true)
 		try {
+			const session = peekPendingScan()
+			if (attachScan === '1' && session) {
+				try {
+					await attachScanCodesToMedicine(executor, session, id)
+				} catch (error) {
+					if (error instanceof Error && error.name === 'CODE_CONFLICT') {
+						// Code already on this or another medicine — continue pack add.
+					} else {
+						throw error
+					}
+				}
+			}
+
 			const batchInput = {
 				medicineId: id,
 				cabinetId,
@@ -163,6 +203,9 @@ export default function AddBatchScreen () {
 				afterOpeningValue: afterValue,
 				afterOpeningUnit: afterValue ? afterOpeningUnit : null,
 				notes,
+				lotNumber: lotNumber.trim() || null,
+				serialNumber: serialNumber.trim() || null,
+				scannedCodeRaw: scannedCodeRaw ?? session?.scanned.rawData ?? null,
 			}
 			if (shoppingItemId) {
 				try {
@@ -173,6 +216,7 @@ export default function AddBatchScreen () {
 				} catch (error) {
 					if (error instanceof Error && error.message === 'ALREADY_COMPLETED') {
 						Alert.alert('Уже отмечено', 'Покупка уже завершена.')
+						clearPendingScan()
 						router.back()
 						return
 					}
@@ -182,6 +226,7 @@ export default function AddBatchScreen () {
 				await createBatch(executor, batchInput)
 				await safeSyncAutomaticShoppingItems(executor, seed.household.id)
 			}
+			clearPendingScan()
 			router.back()
 		} catch (error) {
 			analytics.reportError(error, { source: 'AddBatch.save' })
@@ -245,25 +290,24 @@ export default function AddBatchScreen () {
 				))}
 			</ChipGroup>
 			<ChipGroup label="Срок годности">
-				<ChoiceChip
-					label="Неизвестен"
-					selected={expiryPrecision === 'unknown'}
-					onPress={() => setExpiryPrecision('unknown')}
-				/>
-				<ChoiceChip
-					label="Месяц и год"
-					selected={expiryPrecision === 'year-month'}
-					onPress={() => setExpiryPrecision('year-month')}
-				/>
-				<ChoiceChip
-					label="Точная дата"
-					selected={expiryPrecision === 'date'}
-					onPress={() => setExpiryPrecision('date')}
-				/>
+				{(
+					[
+						['unknown', 'Не указан'],
+						['year-month', 'Месяц'],
+						['date', 'Точная дата'],
+					] as const
+				).map(([value, label]) => (
+					<ChoiceChip
+						key={value}
+						label={label}
+						selected={expiryPrecision === value}
+						onPress={() => setExpiryPrecision(value)}
+					/>
+				))}
 			</ChipGroup>
 			{expiryPrecision === 'year-month' ? (
 				<TextField
-					label="Год и месяц"
+					label="ГГГГ-ММ"
 					value={expiryYearMonth}
 					onChangeText={setExpiryYearMonth}
 					placeholder="2028-05"
@@ -272,7 +316,7 @@ export default function AddBatchScreen () {
 			) : null}
 			{expiryPrecision === 'date' ? (
 				<TextField
-					label="Дата"
+					label="ГГГГ-ММ-ДД"
 					value={expiryDate}
 					onChangeText={setExpiryDate}
 					placeholder="2028-05-15"
@@ -280,14 +324,14 @@ export default function AddBatchScreen () {
 				/>
 			) : null}
 			<TextField
-				label="Дата покупки"
+				label="Дата покупки (необязательно)"
 				value={purchaseDate}
 				onChangeText={setPurchaseDate}
 				placeholder="ГГГГ-ММ-ДД"
 				error={errors.purchaseDate}
 			/>
 			<TextField
-				label="Дата вскрытия"
+				label="Вскрыто (необязательно)"
 				value={openedAt}
 				onChangeText={setOpenedAt}
 				placeholder="ГГГГ-ММ-ДД"
@@ -300,21 +344,39 @@ export default function AddBatchScreen () {
 				keyboardType="decimal-pad"
 				error={errors.afterOpening}
 			/>
-			<ChipGroup label="Единица срока после вскрытия">
-				{AFTER_OPENING_UNITS.map((item) => (
-					<ChoiceChip
-						key={item.code}
-						label={item.label}
-						selected={afterOpeningUnit === item.code}
-						onPress={() => setAfterOpeningUnit(item.code)}
-					/>
-				))}
-			</ChipGroup>
-			<TextField label="Заметка" value={notes} onChangeText={setNotes} />
+			{afterOpeningValue.trim() ? (
+				<ChipGroup label="Единица срока после вскрытия">
+					{AFTER_OPENING_UNITS.map((item) => (
+						<ChoiceChip
+							key={item.code}
+							label={item.label}
+							selected={afterOpeningUnit === item.code}
+							onPress={() => setAfterOpeningUnit(item.code)}
+						/>
+					))}
+				</ChipGroup>
+			) : null}
+			<TextField
+				label="Серия / лот (необязательно)"
+				value={lotNumber}
+				onChangeText={setLotNumber}
+			/>
+			<TextField
+				label="Серийный номер (необязательно)"
+				value={serialNumber}
+				onChangeText={setSerialNumber}
+			/>
+			<TextField
+				label="Заметка"
+				value={notes}
+				onChangeText={setNotes}
+			/>
 			<PrimaryButton
 				label="Сохранить"
-				onPress={() => void handleSave()}
-				loading={saving}
+				onPress={() => {
+					void handleSave()
+				}}
+				disabled={saving}
 				style={styles.save}
 			/>
 		</Screen>

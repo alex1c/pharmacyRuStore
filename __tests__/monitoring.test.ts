@@ -55,6 +55,9 @@ function makeBatch (overrides: Partial<MedicineBatch> = {}): MedicineBatch {
 		afterOpeningUnit: null,
 		purchaseDate: null,
 		notes: null,
+		lotNumber: null,
+		serialNumber: null,
+		scannedCodeRaw: null,
 		createdAt: 'a',
 		updatedAt: 'a',
 		archivedAt: null,
@@ -263,8 +266,8 @@ describe('schema v3 and unit policy', () => {
 	it('migrates to v3 and seeds settings', async () => {
 		const db = createTestSqlExecutor()
 		const version = await applyMigrations(db)
-		expect(version).toBe(6)
-		expect(getLatestSchemaVersion()).toBe(6)
+		expect(version).toBe(7)
+		expect(getLatestSchemaVersion()).toBe(7)
 		await ensureFirstRunDefaults(db)
 		await ensureAppSettings(db)
 		const settings = await getAppSettings(db)

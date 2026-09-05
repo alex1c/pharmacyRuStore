@@ -2,7 +2,7 @@
 
 ## Current phase
 
-**Phase 5 — Покупки и семья** (complete)
+**Phase 6 — Сканирование и быстрый ввод** (complete)
 
 ## Completed
 
@@ -10,13 +10,14 @@
 Foundation, inventory, expiry/stock, courses/intake, native local reminders (schema v1–v5).
 
 ### Phase 5
-- Schema v6: `people.note`, `people.archived_at`; `shopping_items` + partial unique automatic medicine index
-- Family CRUD (Ещё → Члены семьи); default «Я» protected; archive finishes courses, keeps history
-- Person filter on Приём / History; Today hides default name
-- Automatic shopping from low/empty stock (idempotent sync); recovery → completed
-- Manual medicine + custom items; purchase → new batch (no duplicate Medicine)
-- Shopping tab + badge; medicine detail shopping actions
-- Intake taken/undo syncs shopping list
+Family CRUD + shopping lifecycle (schema v6).
+
+### Phase 6
+- Schema v7: `medicine_codes`; batch `lot_number` / `serial_number` / `scanned_code_raw`
+- `expo-camera` scanner (EAN/UPC/Code128/QR/DataMatrix) with torch + manual code entry
+- Best-effort GS1 parser; local code matching; no mandatory external API
+- Fast entry: recent medicines, duplicate name warning, shopping «Куплено» → scan
+- See [`docs/SCANNING_ARCHITECTURE.md`](SCANNING_ARCHITECTURE.md)
 
 ## Phase 4 note
 
@@ -26,19 +27,20 @@ Functional native reminders confirmed in prior checkpoint; extended native matri
 
 - Archived medicine photos not deleted from disk yet
 - Exact alarm special access may be denied on Android 14+ by default
+- Physical-device barcode scan QA deferred (emulator uses manual code entry)
 
 ## Deferred
 
-- Scanner (Phase 6)
 - Backup / restore (Phase 7)
 - AppMetrica + ads (Phase 8)
 - Final icon / screenshots / release signing (Phase 9)
 - Extended native notification matrix
+- Remote medicine catalogue enrichment
 
 ## Next checkpoint
 
-Phase 6 — medicine scanning and fast entry
+Phase 7 — full backup, restore and export
 
 ## Last verified commit SHA
 
-`3bf16cb11254224aa1450182ae6dbaec82dc3963`
+(pending Phase 6 commit)

@@ -49,6 +49,14 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Камера нужна только для сканирования кода на упаковке.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#E8F6F3",

@@ -32,7 +32,7 @@ describe('people CRUD', () => {
 	async function setup () {
 		const db = createTestSqlExecutor()
 		await applyMigrations(db)
-		expect(getLatestSchemaVersion()).toBe(6)
+		expect(getLatestSchemaVersion()).toBe(7)
 		const seed = await ensureFirstRunDefaults(db)
 		return { db, seed }
 	}

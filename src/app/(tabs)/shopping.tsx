@@ -188,13 +188,33 @@ export default function ShoppingScreen () {
 
 	function handleBought (view: ShoppingView) {
 		if (view.item.medicineId) {
-			router.push({
-				pathname: '/medicines/[id]/batches/add',
-				params: {
-					id: view.item.medicineId,
-					shoppingItemId: view.item.id,
+			Alert.alert('Куплено', view.title, [
+				{ text: 'Отмена', style: 'cancel' },
+				{
+					text: 'Сканировать упаковку',
+					onPress: () => {
+						router.push({
+							pathname: '/scan/index',
+							params: {
+								medicineId: view.item.medicineId!,
+								shoppingItemId: view.item.id,
+							},
+						})
+					},
 				},
-			})
+				{
+					text: 'Ввести данные',
+					onPress: () => {
+						router.push({
+							pathname: '/medicines/[id]/batches/add',
+							params: {
+								id: view.item.medicineId!,
+								shoppingItemId: view.item.id,
+							},
+						})
+					},
+				},
+			])
 			return
 		}
 		Alert.alert('Куплено', view.title, [

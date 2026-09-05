@@ -109,6 +109,8 @@ Inventory / intake flows (stack):
 
 **Schema v6:** `people.note` / `archived_at`; `shopping_items` (automatic/manual shopping list)
 
+**Schema v7:** `medicine_codes`; batch `lot_number` / `serial_number` / `scanned_code_raw`
+
 ### Monitoring (Phase 2)
 
 - Effective expiry = earlier of package expiry and after-opening expiry
@@ -137,6 +139,14 @@ Inventory / intake flows (stack):
 - People CRUD with archive (history preserved); course assignment per person
 - Automatic shopping from low/empty stock; purchase adds a new pack to existing Medicine
 - Manual and custom shopping items; completed history with manual restore
+
+### Scanning & fast entry (Phase 6)
+
+- Optional `expo-camera` scanner; local `medicine_codes` matching; GS1 best-effort parse
+- No mandatory external medicine database/API
+- Recent medicines + duplicate-name warning on create
+- See [`docs/SCANNING_ARCHITECTURE.md`](docs/SCANNING_ARCHITECTURE.md)
+
 ## Git workflow
 
 - GitHub `main` is the source of truth
@@ -153,8 +163,8 @@ Inventory / intake flows (stack):
 | Phase 2 | Сроки / остатки |
 | Phase 3 | Курсы и приём |
 | Phase 4 | Native reminders |
-| Phase 5 | Покупки и семья (**current**) |
-| Phase 6 | Scanning |
+| Phase 5 | Покупки и семья |
+| Phase 6 | Scanning (**current**) |
 | Phase 7 | Backup / restore |
 | Phase 8 | Ads + AppMetrica |
 | Phase 9 | Release |

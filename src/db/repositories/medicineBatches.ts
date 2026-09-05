@@ -22,6 +22,9 @@ interface BatchRow {
 	after_opening_unit: string | null
 	purchase_date: string | null
 	notes: string | null
+	lot_number: string | null
+	serial_number: string | null
+	scanned_code_raw: string | null
 	created_at: string
 	updated_at: string
 	archived_at: string | null
@@ -41,6 +44,9 @@ function mapRow (row: BatchRow): MedicineBatch {
 		afterOpeningUnit: row.after_opening_unit as AfterOpeningUnit | null,
 		purchaseDate: row.purchase_date,
 		notes: row.notes,
+		lotNumber: row.lot_number ?? null,
+		serialNumber: row.serial_number ?? null,
+		scannedCodeRaw: row.scanned_code_raw ?? null,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
 		archivedAt: row.archived_at ?? null,
@@ -50,7 +56,8 @@ function mapRow (row: BatchRow): MedicineBatch {
 const SELECT_COLS = `
 	id, medicine_id, cabinet_id, storage_location_id, quantity, unit,
 	expiry_date, opened_at, after_opening_value, after_opening_unit,
-	purchase_date, notes, created_at, updated_at, archived_at
+	purchase_date, notes, lot_number, serial_number, scanned_code_raw,
+	created_at, updated_at, archived_at
 `
 
 export interface BatchInput {
@@ -65,6 +72,9 @@ export interface BatchInput {
 	afterOpeningUnit?: AfterOpeningUnit | null
 	purchaseDate?: string | null
 	notes?: string | null
+	lotNumber?: string | null
+	serialNumber?: string | null
+	scannedCodeRaw?: string | null
 }
 
 export async function getBatchById (
@@ -119,6 +129,9 @@ export async function createBatch (
 		afterOpeningUnit: input.afterOpeningUnit ?? null,
 		purchaseDate: emptyToNull(input.purchaseDate),
 		notes: emptyToNull(input.notes),
+		lotNumber: emptyToNull(input.lotNumber),
+		serialNumber: emptyToNull(input.serialNumber),
+		scannedCodeRaw: emptyToNull(input.scannedCodeRaw),
 		createdAt: timestamp,
 		updatedAt: timestamp,
 		archivedAt: null,
@@ -128,8 +141,9 @@ export async function createBatch (
 		`INSERT INTO medicine_batches
 			(id, medicine_id, cabinet_id, storage_location_id, quantity, unit,
 			 expiry_date, opened_at, after_opening_value, after_opening_unit,
-			 purchase_date, notes, created_at, updated_at, archived_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+			 purchase_date, notes, lot_number, serial_number, scanned_code_raw,
+			 created_at, updated_at, archived_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
 		[
 			batch.id,
 			batch.medicineId,
@@ -143,6 +157,9 @@ export async function createBatch (
 			batch.afterOpeningUnit,
 			batch.purchaseDate,
 			batch.notes,
+			batch.lotNumber,
+			batch.serialNumber,
+			batch.scannedCodeRaw,
 			batch.createdAt,
 			batch.updatedAt,
 		],
@@ -173,6 +190,9 @@ export async function updateBatch (
 		afterOpeningUnit: input.afterOpeningUnit,
 		purchaseDate: input.purchaseDate,
 		notes: input.notes,
+		lotNumber: input.lotNumber,
+		serialNumber: input.serialNumber,
+		scannedCodeRaw: input.scannedCodeRaw,
 	}
 
 	await validateBatchInput(db, nextInput, id)
@@ -190,6 +210,18 @@ export async function updateBatch (
 		afterOpeningUnit: nextInput.afterOpeningUnit ?? null,
 		purchaseDate: emptyToNull(nextInput.purchaseDate),
 		notes: emptyToNull(nextInput.notes),
+		lotNumber:
+			input.lotNumber === undefined
+				? existing.lotNumber
+				: emptyToNull(input.lotNumber),
+		serialNumber:
+			input.serialNumber === undefined
+				? existing.serialNumber
+				: emptyToNull(input.serialNumber),
+		scannedCodeRaw:
+			input.scannedCodeRaw === undefined
+				? existing.scannedCodeRaw
+				: emptyToNull(input.scannedCodeRaw),
 		updatedAt,
 	}
 
@@ -197,7 +229,9 @@ export async function updateBatch (
 		`UPDATE medicine_batches
 		 SET cabinet_id = ?, storage_location_id = ?, quantity = ?, unit = ?,
 			 expiry_date = ?, opened_at = ?, after_opening_value = ?,
-			 after_opening_unit = ?, purchase_date = ?, notes = ?, updated_at = ?
+			 after_opening_unit = ?, purchase_date = ?, notes = ?,
+			 lot_number = ?, serial_number = ?, scanned_code_raw = ?,
+			 updated_at = ?
 		 WHERE id = ?`,
 		[
 			next.cabinetId,
@@ -210,6 +244,9 @@ export async function updateBatch (
 			next.afterOpeningUnit,
 			next.purchaseDate,
 			next.notes,
+			next.lotNumber,
+			next.serialNumber,
+			next.scannedCodeRaw,
 			next.updatedAt,
 			id,
 		],
