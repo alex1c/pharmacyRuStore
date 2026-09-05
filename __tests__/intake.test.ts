@@ -230,7 +230,7 @@ describe('intake service', () => {
 			 VALUES ('duplicate', ?, ?, ?, ?, ?, ?, 'skipped', 1, 'tablet', 0, 'b', 'b')`,
 			[ctx.course.id, ctx.occurrence.scheduleId, ctx.medicine.id, ctx.seed.person.id,
 				ctx.occurrence.scheduledDate, ctx.occurrence.scheduledTime],
-		)).rejects.toThrow(/UNIQUE constraint failed/)
+		)).rejects.toMatchObject({ code: 'SQLITE_CONSTRAINT_UNIQUE' })
 		await undoIntake(ctx.db, first.id)
 		const replacement = await markOccurrenceSkipped(ctx.db, ctx.occurrence)
 		expect(replacement.id).not.toBe(first.id)
