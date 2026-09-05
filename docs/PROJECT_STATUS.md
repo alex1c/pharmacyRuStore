@@ -43,4 +43,4 @@ Phase 7 — full backup, restore and export
 
 ## Last verified commit SHA
 
-(pending Phase 6 commit)
+`e8149ada93328b426a89e96733300adad87c406c`
