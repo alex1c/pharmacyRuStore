@@ -14,11 +14,11 @@
     "android": {
       "package": "com.calculatorplatform.pharmacy",
       "versionCode": 1,
+      "icon": "./assets/images/icon.png",
       "adaptiveIcon": {
-        "backgroundColor": "#E8F6F3",
+        "backgroundColor": "#2A9D8F",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundImage": "./assets/images/android-icon-background.png"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -73,6 +73,8 @@
     },
     "extra": {
       "appName": "Моя аптечка",
+      "supportEmail": "rustore-alex1c@yandex.ru",
+      "privacyUrl": "https://alex1c.github.io/pharmacyRuStore/privacy.html",
       "analytics": {
         "provider": "appmetrica",
         "appMetricaApiKey": "bbf42d5e-64b9-4a91-b4d0-766438bd07b3",

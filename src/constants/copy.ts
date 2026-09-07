@@ -27,17 +27,12 @@ export const tabs = {
 	},
 	more: {
 		title: 'Ещё',
-		subtitle: 'Дополнительные разделы появятся в следующих обновлениях.',
+		subtitle: 'Настройки, семья, резервная копия и сведения о приложении.',
 	},
 } as const
 
-export const moreRows = [
-	{ id: 'family', title: 'Члены семьи', subtitle: 'Скоро' },
-	{ id: 'locations', title: 'Места хранения', subtitle: 'Скоро' },
-	{ id: 'backup', title: 'Резервная копия', subtitle: 'Скоро' },
-	{ id: 'settings', title: 'Настройки', subtitle: 'Скоро' },
-	{ id: 'about', title: 'О приложении', subtitle: 'Скоро' },
-] as const
+/** Legacy placeholder ids — all shipped features use explicit rows on More. */
+export const moreRows = [] as const
 
 export const bootstrapCopy = {
 	loading: 'Подготавливаем аптечку…',

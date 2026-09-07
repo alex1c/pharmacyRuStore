@@ -55,5 +55,8 @@ keystore/
 *.apk
 *.aab
 *.ipa
+release-artifacts/qa-captures/
+release-artifacts/*.apk
+release-artifacts/*.aab
 
 example

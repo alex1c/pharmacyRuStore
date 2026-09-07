@@ -1,9 +1,16 @@
 # Data safety notes (RuStore / store questionnaires)
 
-Factual basis for future RuStore / Google Play data-safety answers.
+Factual basis for RuStore / Google Play data-safety answers.
 **Do not invent final questionnaire answers without re-checking current SDK docs and the merged AndroidManifest.**
 
-Phase covered: **8B — AppMetrica + Yandex Mobile Ads**.
+Phase covered: **9 — final release preparation**.
+
+## Support / privacy contact
+
+- Support email: `rustore-alex1c@yandex.ru`
+- Public privacy page (GitHub Pages from `/docs`):  
+  `https://alex1c.github.io/pharmacyRuStore/privacy.html`
+- Source file: `docs/privacy.html`
 
 ## SDKs present
 
@@ -11,8 +18,10 @@ Phase covered: **8B — AppMetrica + Yandex Mobile Ads**.
 | --- | --- | --- |
 | `@appmetrica/react-native-analytics` 4.1.0 | Product / technical analytics | 8A |
 | `yandex-mobile-ads` 8.4.0 | Banner + interstitial ads | 8B |
+| `expo-camera` | Package barcode / QR / DataMatrix scan | core |
+| `expo-notifications` | Local medication reminders | core |
 
-Native artifacts:
+Native artifacts (typical after prebuild):
 
 - AppMetrica: `io.appmetrica.analytics:analytics:8.0.0`
 - Yandex Mobile Ads: `com.yandex.android:mobileads:8.4.0`
@@ -36,51 +45,60 @@ The app does **not** pass medicine names, person names, scan codes, or intake co
 ## AppMetrica configuration
 
 - API key: `bbf42d5e-64b9-4a91-b4d0-766438bd07b3`
+- Active in release builds
 - `advIdentifiersTracking: false`, `locationTracking: false`
 - Plugin `withAppMetricaNoAdId` excludes AppMetrica `analytics-identifiers`
+- Custom events never include medicine/person/raw barcode payloads
 
-## Custom analytics events (incl. ads)
+## Expected merged permissions (release)
 
-Allowlisted events in `src/services/analytics/events.ts`, including:
+Present / expected:
 
-- product events from Phase 8A
-- `ad_banner_loaded` / `ad_banner_failed` (`placement`, `format`)
-- `ad_interstitial_loaded` / `ad_interstitial_shown` / `ad_interstitial_failed` (`format`)
+| Permission | Source / note |
+| --- | --- |
+| `INTERNET` | Network (AppMetrica, Ads) |
+| `ACCESS_NETWORK_STATE` | Network state |
+| `CAMERA` | Scanner only (`expo-camera`) |
+| `POST_NOTIFICATIONS` | Reminders (Android 13+) |
+| `RECEIVE_BOOT_COMPLETED` | Reschedule after reboot |
+| `SCHEDULE_EXACT_ALARM` | Exact reminder timing (declared in `app.json`) |
+| `AD_ID` (`com.google.android.gms.permission.AD_ID`) | Yandex Mobile Ads |
+| `VIBRATE` / `WAKE_LOCK` | Notifications / Play services |
+| `SYSTEM_ALERT_WINDOW` | Present with `expo-dev-client` merge (managed workflow) |
+| OEM badge permissions | From `expo-notifications` badge helpers |
 
-Never: creative text, advertiser, click URLs, medicine/person/scan payloads.
+Confirmed **absent** (must stay absent unless product need changes):
 
-## Advertising ID (Phase 8B — verified)
+- `RECORD_AUDIO`
+- `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`
+- contacts / phone / SMS
+- `MANAGE_EXTERNAL_STORAGE`
+
+## Advertising ID
 
 - AppMetrica GAID module remains excluded via `withAppMetricaNoAdId`.
-- **Yandex Mobile Ads** merged debug build **declares** `com.google.android.gms.permission.AD_ID`.
-- Also present: Yandex `AdActivity`, `YandexAdsInitializeProvider`.
+- **Yandex Mobile Ads** declares `com.google.android.gms.permission.AD_ID`.
 - Do **not** remove `AD_ID` for ads — required for monetization stack.
-- No location / contacts / microphone / phone / SMS permissions added for ads.
-
-### Merged-manifest delta vs Phase 8A (ads-related)
-
-Added with Yandex Mobile Ads:
-
-- `com.google.android.gms.permission.AD_ID`
-- `com.yandex.mobile.ads.common.AdActivity`
-- `com.yandex.mobile.ads.core.initializer.YandexAdsInitializeProvider`
-- debug panel activities/providers (SDK)
-
-Unchanged dangerous set: still no `ACCESS_FINE_LOCATION`, contacts, mic, phone, SMS.
-
-## Permissions audit process
-
-1. Capture previous merged permissions baseline.
-2. `npx expo prebuild --platform android`
-3. `assembleDebug` (or equivalent) and inspect merged manifest + dependency tree.
-4. Update this file with factual AD_ID / network / referrer findings.
 
 ## Offline behaviour
 
-- Core app works offline.
+- Core app works offline (inventory, Today, intake, shopping, local backup UI).
 - Banner/interstitial simply absent without network.
-- Ads never block startup or business transactions.
+- Ads / AppMetrica must not crash startup when offline.
 
-## RuStore / РСЯ activation note
+## First-run defaults (no demo catalogue)
 
-Until the published RuStore URL is attached in the Yandex Ads cabinet, the app may remain in a partner “test” status. This does not block code integration; add the URL in Phase 9 release checklist.
+- Person: `Я`
+- Cabinet: `Дом`
+- Empty medicine inventory
+- No mandatory registration
+- Camera / notification permissions requested in context (scanner / reminders), not on cold start without reason
+
+## RuStore / РСЯ activation note (post-publish)
+
+1. Copy published RuStore app URL
+2. Attach it in the Yandex Ads (РСЯ) cabinet for this app
+3. Wait for activation
+4. Re-check block statuses
+
+This is **not** a blocker for AAB upload.

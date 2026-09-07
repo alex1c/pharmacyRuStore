@@ -2,46 +2,41 @@
 
 ## Current phase
 
-**Phase 8B — Production Yandex Ads** (complete after validation)
+**Phase 9 — Final release / icon / RuStore assets / production QA**
+
+## Status
+
+**READY FOR FINAL CODEX RELEASE AUDIT**
+
+Do **not** mark `READY FOR RUSTORE` until the separate final Codex release audit completes on the local machine.
 
 ## Completed
 
-### Phase 0–7
-Foundation through backup/restore (schema v1–v7).
+### Phase 0–8B
+Foundation through backup, AppMetrica, and Yandex Ads (policy-aligned).
 
-### Phase 8A
-- AppMetrica production analytics, privacy-safe taxonomy, DATA_SAFETY baseline
+### Phase 9 (this checkpoint)
+- Master icon `assets/icon_gpt.png` tracked as sole artwork source
+- Android / adaptive / RuStore icons generated from master (master file not rewritten)
+- Support email `rustore-alex1c@yandex.ru` + privacy GitHub Pages path
+- DATA_SAFETY / RELEASE_CHECKLIST / store description
+- Store screenshots `1080×1920` under `release-artifacts/rustore/screenshots/`
+- Production signing keystore (local, gitignored) + release AAB workflow
+- Static validation + release native build sanity
 
-### Phase 8B
-- `yandex-mobile-ads` 8.4.0 integrated (native `mobileads:8.4.0`)
-- Production banner `R-M-19988985-1` + interstitial `R-M-19988985-2`
-- Feed `R-M-19988985-3` reserved/disabled
-- Banner placements: **cabinet, shopping, more** only (Today / Приём ad-free)
-- Interstitial: ≥**5 min**, ≥**5** meaningful actions, max 1/session, medical exclusions
-- Dev default: no production ad impressions
-- Privacy / DATA_SAFETY / ADS_POLICY updated
-- Master icon `assets/icon_gpt.png` present for Phase 9 (unchanged in 8B)
+## Known issues / deferred
 
-## Known issues
-
-- Archived medicine photos not deleted from disk yet
-- Exact alarm special access may be denied on Android 14+ by default
-- Physical-device barcode scan QA deferred
-- Backup ZIP is not encrypted
-- Production ad load QA deferred to device/release (avoid production impressions in Cursor)
-
-## Deferred
-
-- Phase 9 — final icon, RuStore screenshots, release build, production ad/device QA
-- Extended native notification matrix
-- Remote medicine catalogue enrichment
-- Optional encrypted backup
-- Feed ad format
+- Physical-device barcode scan QA if no USB device attached
+- Extended Pixel API 37 notification matrix if emulator ANR limits apply
+- After RuStore publish: attach public URL in РСЯ cabinet
+- Archived medicine photos cleanup on disk
+- Backup ZIP not encrypted
+- Optional feed ads
 
 ## Next checkpoint
 
-Phase 9 — release & assets (do not start until requested)
+Final Codex release audit (run separately — not started by Phase 9 agent).
 
 ## Last verified commit SHA
 
-(see git after Phase 8B push)
+(see `git rev-parse HEAD` after Phase 9 push)

@@ -190,9 +190,27 @@ Inventory / intake flows (stack):
 | Phase 6 | Scanning |
 | Phase 7 | Backup / restore |
 | Phase 8A | AppMetrica |
-| Phase 8B | Yandex Ads / РСЯ (**current**) |
-| Phase 9 | Release / assets |
+| Phase 8B | Yandex Ads / РСЯ |
+| Phase 9 | Release / assets (**current**) |
 
 ## Current status
 
-See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
+**READY FOR FINAL CODEX RELEASE AUDIT**
+
+See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) and [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).
+
+### Support / privacy
+
+- Support: `rustore-alex1c@yandex.ru`
+- Privacy (GitHub Pages from `/docs`): https://alex1c.github.io/pharmacyRuStore/privacy.html
+
+### Release artifacts
+
+- Store icon / screenshots / description: `release-artifacts/rustore/`
+- Signed AAB (local, gitignored): `release-artifacts/pharmacy-1.0.0-v1.aab`
+- Signing notes (no secrets): [`docs/SIGNING.md`](docs/SIGNING.md)
+
+### Icon master
+
+- Sole master artwork: `assets/icon_gpt.png`
+- Do not rewrite the master; regenerate Android / RuStore derivatives via `node scripts/generate-icons-from-master.js`

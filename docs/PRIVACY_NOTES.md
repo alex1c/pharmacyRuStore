@@ -1,24 +1,25 @@
 # Privacy review notes
 
-Checklist before RuStore publication. Phase 8B: AppMetrica + Yandex Mobile Ads connected.
+Checklist before RuStore publication. Phase 9: support contact + privacy URL finalized.
 
 ## Must update before store release
 
 - [x] Document AppMetrica usage in `docs/privacy.html`
 - [x] Document Yandex Mobile Ads / РСЯ usage in `docs/privacy.html`
-- [ ] Add support contact once support email is confirmed
+- [x] Support contact: `rustore-alex1c@yandex.ru`
+- [x] Public privacy URL: `https://alex1c.github.io/pharmacyRuStore/privacy.html` (repo `/docs` → GitHub Pages)
 - [x] Document that custom analytics events do **not** include medicine/person names or raw codes
 - [x] Document ad SDK presence and that medicine/person/scan values are not passed into the advertising layer by the app
-- [ ] Confirm age rating / sensitive category disclosures for RuStore
+- [x] Age expectation documented as **0+** (final choice in RuStore UI)
 - [x] Note Advertising ID behaviour for analytics vs ads in `docs/DATA_SAFETY.md`
 - [x] Production AppMetrica / Ads IDs are centralized
-- [ ] Ensure `.env` / keystore / signing materials are gitignored and not uploaded
+- [x] Keystore / signing materials gitignored (`keystore/`, `*.jks`, `*.aab`)
 - [ ] After RuStore URL exists: attach it in Yandex Ads cabinet (see `docs/ADS_POLICY.md`)
 
 ## Product policy reminders
 
-- Ads: one unobtrusive banner on cabinet / shopping / more / history
-- No banner on Today / medical forms / scanner / backup
+- Ads: one unobtrusive banner on cabinet / shopping / more
+- No banner on Today / Приём / medical forms / scanner / backup
 - No interstitial right after launch
 - No interstitial during / after intake confirmation
 - Offline core features must keep working if ads/analytics fail

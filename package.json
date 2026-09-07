@@ -13,7 +13,11 @@
     "test": "jest",
     "doctor": "npx expo-doctor",
     "check": "npm run typecheck && npm run lint && npm run test && npm run doctor",
-    "verify": "npm run check"
+    "verify": "npm run check",
+    "icons:generate": "node scripts/generate-icons-from-master.js",
+    "screenshots:generate": "node scripts/generate-store-screenshots.js",
+    "screenshots:validate": "node scripts/validate-store-screenshots.js",
+    "android:signing": "node scripts/configure-android-signing.js"
   },
   "dependencies": {
     "@appmetrica/react-native-analytics": "^4.1.0",
@@ -64,6 +68,7 @@
     "eslint-config-expo": "^57.0.2",
     "jest": "^29.7.0",
     "jest-expo": "^57.0.5",
+    "sharp": "^0.34.2",
     "typescript": "~6.0.3"
   }
 }

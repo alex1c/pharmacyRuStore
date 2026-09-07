@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { StyleSheet, Text } from 'react-native'
+import { Linking, StyleSheet, Text } from 'react-native'
 import { router } from 'expo-router'
+import Constants from 'expo-constants'
 
 import {
 	AppHeader,
@@ -9,10 +10,17 @@ import {
 	Screen,
 	SectionHeader,
 } from '@/components/ui'
-import { HEALTH_DISCLAIMER, moreRows, tabs } from '@/constants/copy'
-import { colors, typography } from '@/constants/theme'
 import { AppBannerAd } from '@/components/ads/AppBannerAd'
+import { APP_NAME, HEALTH_DISCLAIMER, tabs } from '@/constants/copy'
+import { colors, typography } from '@/constants/theme'
 import { analytics } from '@/services/analytics'
+
+const SUPPORT_EMAIL =
+	(Constants.expoConfig?.extra?.supportEmail as string | undefined) ??
+	'rustore-alex1c@yandex.ru'
+const PRIVACY_URL =
+	(Constants.expoConfig?.extra?.privacyUrl as string | undefined) ??
+	'https://alex1c.github.io/pharmacyRuStore/privacy.html'
 
 /**
  * «Ещё» — settings entry points and disclaimer.
@@ -59,19 +67,34 @@ export default function MoreScreen () {
 					title="Резервная копия"
 					subtitle="Сохранить и восстановить данные"
 					showChevron
+					style={styles.rowLast}
 					onPress={() => router.push('/settings/backup' as never)}
 				/>
-				{moreRows
-					.filter((row) => row.id !== 'family' && row.id !== 'backup')
-					.map((row, index, list) => (
-					<ListRow
-						key={row.id}
-						title={row.title}
-						subtitle={row.subtitle}
-						disabled
-						style={index === list.length - 1 ? styles.rowLast : null}
-					/>
-				))}
+			</Card>
+
+			<SectionHeader title="О приложении" />
+			<Card style={styles.listCard}>
+				<ListRow
+					title={APP_NAME}
+					subtitle={`Версия ${Constants.expoConfig?.version ?? '1.0.0'}`}
+				/>
+				<ListRow
+					title="Поддержка"
+					subtitle={SUPPORT_EMAIL}
+					showChevron
+					onPress={() => {
+						void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)
+					}}
+				/>
+				<ListRow
+					title="Политика конфиденциальности"
+					subtitle="Открыть в браузере"
+					showChevron
+					style={styles.rowLast}
+					onPress={() => {
+						void Linking.openURL(PRIVACY_URL)
+					}}
+				/>
 			</Card>
 
 			<SectionHeader title="Важно" />
