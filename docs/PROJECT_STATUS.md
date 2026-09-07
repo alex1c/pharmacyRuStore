@@ -16,10 +16,11 @@ Foundation through backup/restore (schema v1–v7).
 - `yandex-mobile-ads` 8.4.0 integrated (native `mobileads:8.4.0`)
 - Production banner `R-M-19988985-1` + interstitial `R-M-19988985-2`
 - Feed `R-M-19988985-3` reserved/disabled
-- Banner placements: cabinet, shopping, more, history
-- Interstitial: delayed eligibility, max 1/session, medical exclusions
+- Banner placements: **cabinet, shopping, more** only (Today / Приём ad-free)
+- Interstitial: ≥**5 min**, ≥**5** meaningful actions, max 1/session, medical exclusions
 - Dev default: no production ad impressions
 - Privacy / DATA_SAFETY / ADS_POLICY updated
+- Master icon `assets/icon_gpt.png` present for Phase 9 (unchanged in 8B)
 
 ## Known issues
 

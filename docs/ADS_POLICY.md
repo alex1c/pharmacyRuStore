@@ -1,8 +1,8 @@
-# Ads policy (Phase 8B)
+# Ads policy (Phase 8B / v1.0)
 
 Monetization with Yandex Mobile Ads (РСЯ) without interfering with medication flows.
 
-## Production units
+## Production IDs
 
 | Format | Unit ID | v1.0 status |
 | --- | --- | --- |
@@ -14,82 +14,69 @@ Central config: `src/constants/adsConfig.ts`, `app.json` → `extra.ads`.
 
 ## Banner placements (enabled)
 
-- **Аптечка** (`cabinet`) — bottom, below list / above tab bar area
-- **Покупки** (`shopping`) — bottom
-- **Ещё** (`more`) — bottom
-- **Приём → История** (`history`) — bottom of history segment only
+- **Аптечка** (`cabinet`)
+- **Покупки** (`shopping`)
+- **Ещё** (`more`)
 
-## Banner placements (disabled)
+Max **one** visible banner per screen.
 
-- Сегодня (Today) — schedule priority; no banner
-- Active courses / PRN take actions on Приём
-- Medicine / batch / course create & edit forms
-- Scanner + scan result
+## No banner
+
+- **Сегодня** (Today)
+- **Приём** (including history segment)
+- Medicine / batch / course / person create & edit forms
+- Scanner / camera / scan result
+- Shopping purchase forms
 - Backup / restore
-- Reminders settings / permission dialogs
-- Family edit, error screens, modals, keyboard overlays
+- Permission / notification settings
+- Confirmation dialogs, modals, error / onboarding screens
 
-Max **one** visible banner per screen. Never two ad blocks at once.
+## Interstitial
 
-## Interstitial policy
+Eligibility (all required):
 
-- Max **1 per cold app session**
-- Minimum session age: **3 minutes**
-- Minimum meaningful non-medical actions: **4**
-- Cooldown abstraction: **10 minutes** between shows (future-proof; rarely hits with 1/session)
-- After medication notification open: blocked for **5 minutes**
-- Preload after quiet SDK init; never block startup
-- If not ready / failed → continue user flow silently
+- `sessionAge >= 5 minutes`
+- `meaningfulActionCount >= 5`
+- `interstitialShown == false` (max **1 / session**)
+- interstitial ad ready
 
-### Eligible triggers (after successful secondary flow)
+Meaningful actions (examples): medicine/batch saved, shopping manual add, shopping purchase completed, cabinet/location saved.
 
-- Medicine created / edited
-- Batch created / edited
-- Shopping purchase completed (returned to list)
-- Cabinet / storage location saved
+**Not counted / never trigger:** intake taken / skipped / snooze / PRN / undo, notification tap/open, course create/edit, scanner, backup/restore, permission flows.
 
-### Never trigger interstitial
+### Allowed try-show points (after successful business work)
 
-- Intake taken / skipped / snoozed
-- Notification tap / open-from-reminder
-- Cold start / first action / immediately after launch
-- Scanner / scan result
-- Backup / restore
-- Permission prompts
-- While keyboard or modal is open
+- After medicine / batch save when back on a calm inventory path
+- After shopping purchase completed on Shopping list
+- After cabinet / location save
 
-Medical actions do **not** increase eligibility counters.
+Preload may run after quiet SDK init; preload does **not** grant show rights.
 
-## Dev / release
+## Medical exclusions
+
+Never show interstitial before/after `Принял`, `Пропустить`, snooze, PRN, notification reminder open, or during medication confirmation UX.
+
+## Dev policy
 
 | Runtime | Behaviour |
 | --- | --- |
 | `__DEV__` default | Ads **disabled** — no production impressions |
-| `__DEV__` + `ADS_ENABLE_DEMO_IN_DEV=true` | Official demo units (`demo-banner-yandex`, `demo-interstitial-yandex`) |
-| Release | Production units automatically |
-
-Do not QA with production impressions on developer machines.
-
-## Medical safety UX
-
-- Ads must not sit next to `Принял` / stock urgency / medicine+CTA clusters
-- No “Рекомендуем” copy near ads
-- Spacing separates inventory content from the banner strip
-- Ad failure never rolls back purchases, intake, or backup
+| `__DEV__` + `ADS_ENABLE_DEMO_IN_DEV` | Official demo units only |
+| Release | Production units automatic |
 
 ## Analytics (AppMetrica)
 
-Generic only:
+Generic only: `ad_banner_loaded` / `ad_banner_failed` / `ad_interstitial_*` with `placement` ∈ {cabinet, shopping, more} and `format`.
 
-- `ad_banner_loaded` / `ad_banner_failed` — `placement`, `format=banner`
-- `ad_interstitial_loaded` / `ad_interstitial_shown` / `ad_interstitial_failed` — `format=interstitial`
+Never medicine/person/codes/creative/URLs.
 
-Never send creative text, advertiser, click URLs, medicine/person/scan payloads.
+## RuStore / РСЯ activation
 
-## Release checklist (post-RuStore)
+Until the published RuStore URL is attached in the Yandex Ads cabinet, partner status may stay “test”. Not a code blocker.
 
-- [ ] Confirm production banner/interstitial load on a real device
-- [ ] Add published RuStore app URL in Yandex Ads app settings
-- [ ] Confirm РСЯ app status leaves “test” after store link
-- [ ] Re-check merged manifest `AD_ID` declaration for store questionnaire
-- [ ] Final icon / screenshots / signing (Phase 9)
+Release checklist:
+
+1. Obtain RuStore app URL
+2. Add URL in РСЯ app settings
+3. Confirm activation / block status
+4. Device production ad load check

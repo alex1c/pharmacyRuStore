@@ -44,7 +44,6 @@ import {
 import { AnalyticsEvents, analytics } from '@/services/analytics'
 import { adsService } from '@/services/ads'
 import { formatDateRu, formatInstantHm, historyDateLabel } from '@/utils/formatRu'
-import { AppBannerAd } from '@/components/ads/AppBannerAd'
 import { formatQuantityWithUnit } from '@/utils/quantity'
 import { toDateOnlyLocal } from '@/utils/dates'
 import { safeSyncMedicationReminders } from '@/services/notifications'
@@ -213,7 +212,7 @@ export default function IntakeScreen () {
 				})
 				await safeSyncAutomaticShoppingItems(executor, seed.household.id)
 				analytics.trackEvent(AnalyticsEvents.INTAKE_TAKEN)
-				adsService.recordMedicalAction('intake_taken')
+				adsService.recordMedicalAction('intake_prn')
 				Alert.alert(
 					'Отмечено',
 					`Принято в ${formatInstantHm(record.actualTakenAt ?? '')}`,
@@ -551,7 +550,6 @@ export default function IntakeScreen () {
 							style={styles.moreBtn}
 						/>
 					) : null}
-					<AppBannerAd placement="history" />
 				</>
 			)}
 		</Screen>

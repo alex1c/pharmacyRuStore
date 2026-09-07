@@ -145,7 +145,6 @@ export default function ShoppingScreen () {
 	useFocusEffect(
 		useCallback(() => {
 			analytics.trackScreen('shopping')
-			adsService.recordMeaningfulAction('screen_browse')
 			void load()
 		}, [load]),
 	)
@@ -167,6 +166,8 @@ export default function ShoppingScreen () {
 			})
 			if (!result.created) {
 				Alert.alert('Уже в покупках', 'Это лекарство уже есть в списке.')
+			} else {
+				adsService.recordMeaningfulAction('shopping_manual')
 			}
 			setAdding(false)
 			await load()
@@ -184,6 +185,7 @@ export default function ShoppingScreen () {
 			householdId: seed.household.id,
 			customName,
 		})
+		adsService.recordMeaningfulAction('shopping_manual')
 		setCustomName('')
 		setAdding(false)
 		await load()

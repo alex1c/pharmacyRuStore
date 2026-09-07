@@ -3,6 +3,14 @@
  */
 
 import {
+	AnalyticsEvents,
+	analytics,
+	resetAnalyticsRuntimeForTests,
+	setAnalyticsReporterForTests,
+} from '@/services/analytics'
+import { sanitizeEventParams } from '@/services/analytics/sanitize'
+import {
+	BANNER_BLOCKED_SCREENS,
 	adsService,
 	getAdsRuntimeConfig,
 	isBannerPlacementAllowed,
@@ -15,16 +23,18 @@ import {
 	resetAdsInitializationForTests,
 	resetInterstitialRuntimeForTests,
 	resolveAdsRuntimeConfig,
+	setAdClockForTests,
 	setAdSessionStartedAtForTests,
 	setAdsRuntimeConfigForTests,
 	setInterstitialBridgeForTests,
 	tryShowInterstitial,
-	BANNER_BLOCKED_SCREENS,
 } from '@/services/ads'
 import {
 	YANDEX_ADS_DEMO,
 	YANDEX_ADS_PRODUCTION,
 } from '@/constants/adsConfig'
+
+const FIVE_MIN = 5 * 60 * 1000
 
 describe('ads runtime config', () => {
 	afterEach(() => {
@@ -57,12 +67,13 @@ describe('ads runtime config', () => {
 })
 
 describe('banner placement policy', () => {
-	it('allows only approved placements', () => {
+	it('allows only cabinet, shopping, more', () => {
 		expect(isBannerPlacementAllowed('cabinet')).toBe(true)
 		expect(isBannerPlacementAllowed('shopping')).toBe(true)
 		expect(isBannerPlacementAllowed('more')).toBe(true)
-		expect(isBannerPlacementAllowed('history')).toBe(true)
 		expect(isBannerPlacementAllowed('today')).toBe(false)
+		expect(isBannerPlacementAllowed('intake')).toBe(false)
+		expect(isBannerPlacementAllowed('history')).toBe(false)
 		expect(isBannerPlacementAllowed('scanner')).toBe(false)
 		expect(isBannerPlacementAllowed('backup')).toBe(false)
 	})
@@ -71,6 +82,7 @@ describe('banner placement policy', () => {
 		expect(BANNER_BLOCKED_SCREENS).toEqual(
 			expect.arrayContaining([
 				'today',
+				'intake',
 				'medicine_edit',
 				'batch_add',
 				'course_edit',
@@ -81,15 +93,13 @@ describe('banner placement policy', () => {
 	})
 })
 
-describe('ad session interstitial policy', () => {
+describe('ad session interstitial policy (injectable clock)', () => {
+	let clock = 0
+
 	beforeEach(() => {
-		resetAdSessionForTests({
-			minSessionAgeMs: 3 * 60 * 1000,
-			minMeaningfulActions: 4,
-			maxInterstitialsPerSession: 1,
-			minimumInterstitialIntervalMs: 10 * 60 * 1000,
-			notificationBlockMs: 5 * 60 * 1000,
-		})
+		clock = 1_000_000
+		setAdClockForTests(() => clock)
+		resetAdSessionForTests()
 		resetInterstitialRuntimeForTests()
 		resetAdsInitializationForTests()
 		setAdsRuntimeConfigForTests({
@@ -103,38 +113,46 @@ describe('ad session interstitial policy', () => {
 		})
 	})
 
-	it('is not eligible immediately on new session', () => {
-		expect(isInterstitialEligible()).toBe(false)
+	afterEach(() => {
+		setAdClockForTests(null)
 	})
 
-	it('is false before minimum session age', () => {
-		recordMeaningfulAdAction('screen_browse')
-		recordMeaningfulAdAction('screen_browse')
-		recordMeaningfulAdAction('screen_browse')
-		recordMeaningfulAdAction('screen_browse')
-		expect(isInterstitialEligible()).toBe(false)
-	})
-
-	it('is false with insufficient meaningful actions', () => {
-		setAdSessionStartedAtForTests(Date.now() - 4 * 60 * 1000)
-		recordMeaningfulAdAction('screen_browse')
-		recordMeaningfulAdAction('screen_browse')
-		expect(isInterstitialEligible()).toBe(false)
-	})
-
-	it('becomes eligible after age + actions', () => {
-		setAdSessionStartedAtForTests(Date.now() - 4 * 60 * 1000)
-		for (let i = 0; i < 4; i += 1) {
-			recordMeaningfulAdAction('screen_browse')
+	function addActions (count: number) {
+		for (let i = 0; i < count; i += 1) {
+			recordMeaningfulAdAction('medicine_saved')
 		}
+	}
+
+	it('0:00 + 10 actions → not eligible', () => {
+		addActions(10)
+		expect(isInterstitialEligible()).toBe(false)
+	})
+
+	it('4:59 + 10 actions → not eligible', () => {
+		addActions(10)
+		clock += FIVE_MIN - 1
+		expect(isInterstitialEligible()).toBe(false)
+	})
+
+	it('5:00 + 4 actions → not eligible', () => {
+		addActions(4)
+		clock += FIVE_MIN
+		expect(isInterstitialEligible()).toBe(false)
+	})
+
+	it('5:00 + 5 actions → eligible', () => {
+		addActions(5)
+		clock += FIVE_MIN
 		expect(isInterstitialEligible()).toBe(true)
 	})
 
 	it('medical actions do not increase eligibility', () => {
-		setAdSessionStartedAtForTests(Date.now() - 4 * 60 * 1000)
+		clock += FIVE_MIN
 		recordMedicalAdAction('intake_taken')
 		recordMedicalAdAction('intake_skipped')
 		recordMedicalAdAction('intake_snoozed')
+		recordMedicalAdAction('intake_prn')
+		recordMedicalAdAction('intake_undo')
 		recordMedicalAdAction('notification_open')
 		expect(isInterstitialEligible()).toBe(false)
 		expect(adsService.canShowInterstitial('intake.confirm')).toBe(false)
@@ -142,19 +160,15 @@ describe('ad session interstitial policy', () => {
 	})
 
 	it('blocks interstitial shortly after notification open', () => {
-		setAdSessionStartedAtForTests(Date.now() - 4 * 60 * 1000)
-		for (let i = 0; i < 4; i += 1) {
-			recordMeaningfulAdAction('screen_browse')
-		}
+		addActions(5)
+		clock += FIVE_MIN
 		recordNotificationOpen()
 		expect(isInterstitialEligible()).toBe(false)
 	})
 
-	it('shows interstitial at most once per session even if called repeatedly', async () => {
-		setAdSessionStartedAtForTests(Date.now() - 4 * 60 * 1000)
-		for (let i = 0; i < 4; i += 1) {
-			recordMeaningfulAdAction('screen_browse')
-		}
+	it('shows interstitial at most once per session', async () => {
+		addActions(5)
+		clock += FIVE_MIN
 
 		let showCalls = 0
 		setInterstitialBridgeForTests({
@@ -171,21 +185,15 @@ describe('ad session interstitial policy', () => {
 			},
 		})
 
-		const first = await tryShowInterstitial('medicine_saved')
-		const second = await tryShowInterstitial('batch_saved')
-		const third = await tryShowInterstitial('shopping_completed')
-
-		expect(first).toBe(true)
-		expect(second).toBe(false)
-		expect(third).toBe(false)
+		expect(await tryShowInterstitial('medicine_saved')).toBe(true)
+		expect(await tryShowInterstitial('batch_saved')).toBe(false)
+		expect(await tryShowInterstitial('shopping_completed')).toBe(false)
 		expect(showCalls).toBe(1)
 	})
 
 	it('continues when interstitial is not ready', async () => {
-		setAdSessionStartedAtForTests(Date.now() - 4 * 60 * 1000)
-		for (let i = 0; i < 4; i += 1) {
-			recordMeaningfulAdAction('screen_browse')
-		}
+		addActions(5)
+		clock += FIVE_MIN
 		setInterstitialBridgeForTests({
 			preload: async () => undefined,
 			isReady: () => false,
@@ -196,10 +204,8 @@ describe('ad session interstitial policy', () => {
 	})
 
 	it('survives SDK throw without breaking caller', async () => {
-		setAdSessionStartedAtForTests(Date.now() - 4 * 60 * 1000)
-		for (let i = 0; i < 4; i += 1) {
-			recordMeaningfulAdAction('screen_browse')
-		}
+		addActions(5)
+		clock += FIVE_MIN
 		setInterstitialBridgeForTests({
 			preload: async () => {
 				throw new Error('preload_boom')
@@ -211,6 +217,50 @@ describe('ad session interstitial policy', () => {
 			},
 		})
 		await expect(tryShowInterstitial('storage_saved')).resolves.toBe(false)
+	})
+})
+
+describe('ads analytics allowlist', () => {
+	beforeEach(() => {
+		resetAnalyticsRuntimeForTests()
+	})
+
+	it('allows placement+format and drops medical/ad-creative keys', () => {
+		const sanitized = sanitizeEventParams(AnalyticsEvents.AD_BANNER_LOADED, {
+			placement: 'shopping',
+			format: 'banner',
+			medicineName: 'Нурофен',
+			personName: 'Анна',
+			rawCode: '460123',
+			advertiser: 'ACME',
+		} as never)
+		expect(sanitized).toEqual({
+			placement: 'shopping',
+			format: 'banner',
+		})
+		expect(JSON.stringify(sanitized)).not.toContain('Нурофен')
+		expect(JSON.stringify(sanitized)).not.toContain('ACME')
+	})
+
+	it('drops forbidden keys before reporter', () => {
+		const events: Array<{ name: string; attrs?: Record<string, unknown> }> = []
+		setAnalyticsReporterForTests({
+			event: (name, attrs) => {
+				events.push({ name, attrs })
+			},
+			error: () => undefined,
+		})
+		analytics.trackEvent(AnalyticsEvents.AD_BANNER_FAILED, {
+			placement: 'cabinet',
+			format: 'banner',
+			// @ts-expect-error intentional forbidden keys
+			medicineName: 'X',
+			advertiser: 'Y',
+		})
+		expect(events[0]?.attrs).toEqual({
+			placement: 'cabinet',
+			format: 'banner',
+		})
 	})
 })
 

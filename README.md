@@ -165,8 +165,8 @@ Inventory / intake flows (stack):
 
 - `yandex-mobile-ads` native SDK; production banner + interstitial units
 - Feed unit reserved/disabled in v1
-- Banners on cabinet / shopping / more / history only
-- Interstitial: delayed, max 1/session, never on intake/medical flows
+- Banners on **cabinet / shopping / more** only (not Today / Приём)
+- Interstitial: ≥5 min session, ≥5 meaningful actions, max 1/session, never on intake/medical flows
 - Dev: ads off by default (no production impressions)
 - See [`docs/ADS_POLICY.md`](docs/ADS_POLICY.md)
 

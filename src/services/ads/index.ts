@@ -47,6 +47,7 @@ export {
 	DEFAULT_AD_SESSION_POLICY,
 	resetAdSessionForTests,
 	setAdSessionStartedAtForTests,
+	setAdClockForTests,
 	startAdSession,
 	recordMeaningfulAdAction,
 	recordMedicalAdAction,

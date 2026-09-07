@@ -8,13 +8,15 @@ export type MeaningfulAdAction =
 	| 'shopping_completed'
 	| 'storage_saved'
 	| 'settings_saved'
-	| 'screen_browse'
+	| 'shopping_manual'
 
 /** Actions that must never unlock or trigger interstitial. */
 export type MedicalAdAction =
 	| 'intake_taken'
 	| 'intake_skipped'
 	| 'intake_snoozed'
+	| 'intake_prn'
+	| 'intake_undo'
 	| 'notification_open'
 
 export type InterstitialTrigger =
@@ -33,8 +35,8 @@ export interface AdSessionPolicyConfig {
 }
 
 export const DEFAULT_AD_SESSION_POLICY: AdSessionPolicyConfig = {
-	minSessionAgeMs: 3 * 60 * 1000,
-	minMeaningfulActions: 4,
+	minSessionAgeMs: 5 * 60 * 1000,
+	minMeaningfulActions: 5,
 	maxInterstitialsPerSession: 1,
 	minimumInterstitialIntervalMs: 10 * 60 * 1000,
 	notificationBlockMs: 5 * 60 * 1000,
@@ -48,18 +50,29 @@ interface AdSessionState {
 	notificationOpenedAt: number | null
 }
 
-let state: AdSessionState = createFreshState()
-let policyConfig: AdSessionPolicyConfig = { ...DEFAULT_AD_SESSION_POLICY }
+/** Injectable clock for deterministic eligibility tests. */
+let nowFn: () => number = () => Date.now()
+
+function now (): number {
+	return nowFn()
+}
+
+export function setAdClockForTests (clock: (() => number) | null): void {
+	nowFn = clock ?? (() => Date.now())
+}
 
 function createFreshState (): AdSessionState {
 	return {
-		sessionStartedAt: Date.now(),
+		sessionStartedAt: now(),
 		meaningfulActionCount: 0,
 		interstitialShownCount: 0,
 		lastInterstitialAt: null,
 		notificationOpenedAt: null,
 	}
 }
+
+let state: AdSessionState = createFreshState()
+let policyConfig: AdSessionPolicyConfig = { ...DEFAULT_AD_SESSION_POLICY }
 
 /** Cold-start / test reset. */
 export function resetAdSessionForTests (
@@ -70,7 +83,7 @@ export function resetAdSessionForTests (
 }
 
 export function startAdSession (
-	now: number = Date.now(),
+	at: number = now(),
 	config?: Partial<AdSessionPolicyConfig>,
 ): void {
 	if (config) {
@@ -78,7 +91,7 @@ export function startAdSession (
 	}
 	state = {
 		...createFreshState(),
-		sessionStartedAt: now,
+		sessionStartedAt: at,
 	}
 }
 
@@ -97,8 +110,8 @@ export function recordMedicalAdAction (_action: MedicalAdAction): void {
 	// Intentionally no-op for eligibility.
 }
 
-export function recordNotificationOpen (now: number = Date.now()): void {
-	state.notificationOpenedAt = now
+export function recordNotificationOpen (at: number = now()): void {
+	state.notificationOpenedAt = at
 }
 
 export function recordMeaningfulAdAction (
@@ -107,21 +120,21 @@ export function recordMeaningfulAdAction (
 	state.meaningfulActionCount += 1
 }
 
-export function markInterstitialShown (now: number = Date.now()): void {
+export function markInterstitialShown (at: number = now()): void {
 	state.interstitialShownCount += 1
-	state.lastInterstitialAt = now
+	state.lastInterstitialAt = at
 }
 
 /**
  * Whether an interstitial is allowed by session rules (ignores SDK readiness).
  */
 export function isInterstitialEligible (
-	now: number = Date.now(),
+	at: number = now(),
 ): boolean {
 	if (state.interstitialShownCount >= policyConfig.maxInterstitialsPerSession) {
 		return false
 	}
-	if (now - state.sessionStartedAt < policyConfig.minSessionAgeMs) {
+	if (at - state.sessionStartedAt < policyConfig.minSessionAgeMs) {
 		return false
 	}
 	if (state.meaningfulActionCount < policyConfig.minMeaningfulActions) {
@@ -129,13 +142,13 @@ export function isInterstitialEligible (
 	}
 	if (
 		state.notificationOpenedAt !== null &&
-		now - state.notificationOpenedAt < policyConfig.notificationBlockMs
+		at - state.notificationOpenedAt < policyConfig.notificationBlockMs
 	) {
 		return false
 	}
 	if (
 		state.lastInterstitialAt !== null &&
-		now - state.lastInterstitialAt < policyConfig.minimumInterstitialIntervalMs
+		at - state.lastInterstitialAt < policyConfig.minimumInterstitialIntervalMs
 	) {
 		return false
 	}

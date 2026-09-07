@@ -21,8 +21,8 @@ Native artifacts:
 
 | Unit | ID | Status |
 | --- | --- | --- |
-| Banner | `R-M-19988985-1` | Enabled |
-| Interstitial | `R-M-19988985-2` | Enabled (1/session policy) |
+| Banner | `R-M-19988985-1` | Enabled (cabinet / shopping / more) |
+| Interstitial | `R-M-19988985-2` | Enabled (≥5 min, ≥5 actions, max 1/session) |
 | Feed | `R-M-19988985-3` | Reserved / **disabled** in v1 |
 
 - Config: `src/constants/adsConfig.ts`, `app.json` → `extra.ads`

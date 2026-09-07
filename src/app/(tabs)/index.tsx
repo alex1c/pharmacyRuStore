@@ -163,7 +163,10 @@ export default function TodayScreen () {
 							{
 								text: 'Отменить',
 								onPress: () => {
-									void undoIntake(executor, record.id).then(() => reload())
+									void undoIntake(executor, record.id).then(() => {
+										adsService.recordMedicalAction('intake_undo')
+										void reload()
+									})
 								},
 							},
 						],

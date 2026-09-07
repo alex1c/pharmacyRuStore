@@ -46,10 +46,14 @@ Checklist before RuStore publication. Phase 8B: AppMetrica + Yandex Mobile Ads c
 
 ## Ads (Phase 8B)
 
-- Provider: `yandex-mobile-ads` (native Yandex Mobile Ads SDK)
+- Provider: `yandex-mobile-ads` **8.4.0** (native `com.yandex.android:mobileads:8.4.0`)
 - Production banner / interstitial IDs configured; feed reserved disabled
+- Banners: cabinet / shopping / more only (not Today / Приём)
+- Interstitial: ≥5 min session, ≥5 meaningful actions, max 1/session
 - Dev default: ads off (no production impressions)
 - Optional demo units via `ADS_ENABLE_DEMO_IN_DEV`
+- Merged manifest includes `com.google.android.gms.permission.AD_ID` from Yandex Ads (kept)
+- See [`docs/ADS_POLICY.md`](ADS_POLICY.md) and [`docs/DATA_SAFETY.md`](DATA_SAFETY.md)
 
 ## Do not claim until true
 

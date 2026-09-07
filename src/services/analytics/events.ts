@@ -56,7 +56,6 @@ export type AdBannerPlacementParam =
 	| 'cabinet'
 	| 'shopping'
 	| 'more'
-	| 'history'
 export type AdFormatParam = 'banner' | 'interstitial'
 
 /**
