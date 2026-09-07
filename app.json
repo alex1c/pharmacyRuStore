@@ -31,7 +31,6 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-dev-client",
       [
         "expo-notifications",
         {

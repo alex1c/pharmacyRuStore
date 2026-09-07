@@ -6,6 +6,7 @@
 
 const {
 	withAppBuildGradle,
+	withAndroidManifest,
 	createRunOncePlugin,
 } = require('expo/config-plugins')
 
@@ -18,6 +19,14 @@ configurations.configureEach {
 `
 
 function withAppMetricaNoAdId (config) {
+	config = withAndroidManifest(config, (cfg) => {
+		const permissions = cfg.modResults.manifest['uses-permission'] ?? []
+		cfg.modResults.manifest['uses-permission'] = permissions.filter(
+			(permission) => permission.$?.['android:name'] !== 'android.permission.SYSTEM_ALERT_WINDOW',
+		)
+		return cfg
+	})
+
 	return withAppBuildGradle(config, (cfg) => {
 		if (cfg.modResults.language !== 'groovy') {
 			return cfg

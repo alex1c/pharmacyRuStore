@@ -64,7 +64,7 @@ Present / expected:
 | `SCHEDULE_EXACT_ALARM` | Exact reminder timing (declared in `app.json`) |
 | `AD_ID` (`com.google.android.gms.permission.AD_ID`) | Yandex Mobile Ads |
 | `VIBRATE` / `WAKE_LOCK` | Notifications / Play services |
-| `SYSTEM_ALERT_WINDOW` | Present with `expo-dev-client` merge (managed workflow) |
+| `SYSTEM_ALERT_WINDOW` | Absent; dev-client is not part of the production dependency/config path |
 | OEM badge permissions | From `expo-notifications` badge helpers |
 
 Confirmed **absent** (must stay absent unless product need changes):
