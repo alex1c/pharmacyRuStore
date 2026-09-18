@@ -24,7 +24,7 @@ export async function createCourseWithSchedules (
 	db: SqlExecutor,
 	input: CourseWithSchedulesInput,
 ): Promise<{ course: MedicationCourse; schedules: MedicationSchedule[] }> {
-	const run = async () => {
+	const run = async (target: SqlExecutor) => {
 		if (input.course.isPrn && input.schedules.length > 0) {
 			throw new Error('PRN_HAS_SCHEDULE')
 		}
@@ -32,11 +32,11 @@ export async function createCourseWithSchedules (
 			throw new Error('SCHEDULE_REQUIRED')
 		}
 
-		const course = await createCourse(db, input.course)
+		const course = await createCourse(target, input.course)
 		const schedules: MedicationSchedule[] = []
 		for (const schedule of input.schedules) {
 			schedules.push(
-				await createSchedule(db, {
+				await createSchedule(target, {
 					...schedule,
 					courseId: course.id,
 				}),
@@ -48,7 +48,7 @@ export async function createCourseWithSchedules (
 	if (db.withTransactionAsync) {
 		return db.withTransactionAsync(run)
 	}
-	return run()
+	return run(db)
 }
 
 /**
@@ -63,7 +63,7 @@ export async function updateCourseWithSchedules (
 		schedules: Omit<ScheduleInput, 'courseId'>[]
 	},
 ): Promise<{ course: MedicationCourse; schedules: MedicationSchedule[] }> {
-	const run = async () => {
+	const run = async (target: SqlExecutor) => {
 		if (input.course.isPrn && input.schedules.length > 0) {
 			throw new Error('PRN_HAS_SCHEDULE')
 		}
@@ -71,10 +71,10 @@ export async function updateCourseWithSchedules (
 			throw new Error('SCHEDULE_REQUIRED')
 		}
 
-		const course = await updateCourse(db, courseId, input.course)
+		const course = await updateCourse(target, courseId, input.course)
 		const schedules = input.course.isPrn
-			? await replaceSchedulesForCourse(db, courseId, [])
-			: await replaceSchedulesForCourse(db, courseId, input.schedules)
+			? await replaceSchedulesForCourse(target, courseId, [])
+			: await replaceSchedulesForCourse(target, courseId, input.schedules)
 
 		return { course, schedules }
 	}
@@ -82,5 +82,5 @@ export async function updateCourseWithSchedules (
 	if (db.withTransactionAsync) {
 		return db.withTransactionAsync(run)
 	}
-	return run()
+	return run(db)
 }

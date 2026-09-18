@@ -341,15 +341,50 @@ describe('intake service', () => {
 		const originalRun = ctx.db.runAsync.bind(ctx.db)
 		const failingDb = {
 			...ctx.db,
-			runAsync: async (sql: string, params: Parameters<typeof originalRun>[1] = []) => {
-				if (sql.includes('INSERT INTO intake_inventory_movements')) throw new Error('INJECTED_MOVEMENT_FAILURE')
+			runAsync: async (
+				sql: string,
+				params: Parameters<typeof originalRun>[1] = [],
+			) => {
+				if (sql.includes('INSERT INTO intake_inventory_movements')) {
+					throw new Error('INJECTED_MOVEMENT_FAILURE')
+				}
 				return originalRun(sql, params)
 			},
+			// Scoped txn executor must also reject — production uses tx, not outer db.
+			withTransactionAsync: async <T>(
+				task: (tx: typeof ctx.db) => Promise<T>,
+			) =>
+				ctx.db.withTransactionAsync!(async (tx) => {
+					const failingTx = {
+						...tx,
+						runAsync: async (
+							sql: string,
+							params: Parameters<typeof originalRun>[1] = [],
+						) => {
+							if (sql.includes('INSERT INTO intake_inventory_movements')) {
+								throw new Error('INJECTED_MOVEMENT_FAILURE')
+							}
+							return tx.runAsync(sql, params)
+						},
+					}
+					return task(failingTx)
+				}),
 		}
-		await expect(markOccurrenceTaken(failingDb, ctx.occurrence)).rejects.toThrow('INJECTED_MOVEMENT_FAILURE')
+		await expect(markOccurrenceTaken(failingDb, ctx.occurrence)).rejects.toThrow(
+			'INJECTED_MOVEMENT_FAILURE',
+		)
 		expect((await getBatchById(ctx.db, ctx.packA.id))?.quantity).toBe(3)
-		expect(await findActiveOccurrenceIntake(ctx.db, ctx.occurrence.scheduleId, ctx.occurrence.scheduledDate, ctx.occurrence.scheduledTime)).toBeNull()
-		const count = await ctx.db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM intake_inventory_movements')
+		expect(
+			await findActiveOccurrenceIntake(
+				ctx.db,
+				ctx.occurrence.scheduleId,
+				ctx.occurrence.scheduledDate,
+				ctx.occurrence.scheduledTime,
+			),
+		).toBeNull()
+		const count = await ctx.db.getFirstAsync<{ count: number }>(
+			'SELECT COUNT(*) AS count FROM intake_inventory_movements',
+		)
 		expect(count?.count).toBe(0)
 	})
 

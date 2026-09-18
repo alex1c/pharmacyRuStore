@@ -77,8 +77,8 @@ export async function markPurchasedWithBatch (
 		batch: BatchInput
 	},
 ): Promise<{ shoppingItem: ShoppingItem; batchId: string }> {
-	const run = async () => {
-		const item = await getShoppingItemById(db, input.shoppingItemId)
+	const run = async (target: SqlExecutor) => {
+		const item = await getShoppingItemById(target, input.shoppingItemId)
 		if (!item) {
 			throw new Error('Shopping item not found')
 		}
@@ -92,9 +92,9 @@ export async function markPurchasedWithBatch (
 			throw new Error('MEDICINE_MISMATCH')
 		}
 
-		const batch = await createBatch(db, input.batch)
-		const completed = await completeShoppingItem(db, item.id)
-		await syncAutomaticShoppingItems(db, item.householdId)
+		const batch = await createBatch(target, input.batch)
+		const completed = await completeShoppingItem(target, item.id)
+		await syncAutomaticShoppingItems(target, item.householdId)
 		return { shoppingItem: completed, batchId: batch.id }
 	}
 
@@ -105,7 +105,7 @@ export async function markPurchasedWithBatch (
 		})
 		return result
 	}
-	const result = await run()
+	const result = await run(db)
 	analytics.trackEvent(AnalyticsEvents.SHOPPING_COMPLETED, {
 		type: 'medicine',
 	})

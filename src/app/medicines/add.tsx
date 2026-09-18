@@ -82,7 +82,8 @@ export default function AddMedicineScreen () {
 	const [notes, setNotes] = useState('')
 	const [photoUri, setPhotoUri] = useState<string | null>(null)
 
-	const [cabinetId, setCabinetId] = useState<string>('')
+	// Seed default immediately so a fast «Сохранить» never hits empty cabinet.
+	const [cabinetId, setCabinetId] = useState<string>(seed.cabinet.id)
 	const [locationId, setLocationId] = useState<string | null>(null)
 	const [quantityText, setQuantityText] = useState('')
 	const [unit, setUnit] = useState<MedicineUnit>('tablet')
@@ -105,10 +106,14 @@ export default function AddMedicineScreen () {
 		analytics.trackScreen('medicine_add')
 		void (async () => {
 			const next = await listCabinetsByHousehold(executor, seed.household.id)
-			setCabinets(next)
-			if (next[0]) {
-				setCabinetId(next[0].id)
-			}
+			const activeCabinets = next.filter((item) => !item.archivedAt)
+			setCabinets(activeCabinets)
+			setCabinetId((current) => {
+				if (activeCabinets.some((item) => item.id === current)) {
+					return current
+				}
+				return activeCabinets[0]?.id ?? seed.cabinet.id
+			})
 			const medicines = await listMedicines(executor, {
 				householdId: seed.household.id,
 			})
@@ -125,7 +130,7 @@ export default function AddMedicineScreen () {
 				}
 			}
 		})()
-	}, [executor, params.prefillExpiry, seed.household.id])
+	}, [executor, params.prefillExpiry, seed.cabinet.id, seed.household.id])
 
 	useEffect(() => {
 		if (!cabinetId) {
@@ -214,6 +219,26 @@ export default function AddMedicineScreen () {
 
 		setSaving(true)
 		try {
+			// Re-resolve cabinet at save time in case the selected one was archived.
+			const liveCabinets = await listCabinetsByHousehold(
+				executor,
+				seed.household.id,
+			)
+			const activeCabinets = liveCabinets.filter((item) => !item.archivedAt)
+			const resolvedCabinetId = activeCabinets.some(
+				(item) => item.id === cabinetId,
+			)
+				? cabinetId
+				: activeCabinets[0]?.id ?? seed.cabinet.id
+			if (!resolvedCabinetId) {
+				setErrors({ cabinetId: 'Выберите аптечку' })
+				setSaving(false)
+				return
+			}
+			if (resolvedCabinetId !== cabinetId) {
+				setCabinetId(resolvedCabinetId)
+			}
+
 			const session = peekPendingScan()
 			const result = await createMedicineWithFirstBatch(
 				executor,
@@ -226,7 +251,7 @@ export default function AddMedicineScreen () {
 					photoUri,
 				},
 				{
-					cabinetId,
+					cabinetId: resolvedCabinetId,
 					storageLocationId: locationId,
 					quantity,
 					unit,

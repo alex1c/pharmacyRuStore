@@ -53,6 +53,7 @@ export type ShoppingAddSource = 'automatic' | 'manual'
 export type ShoppingCompleteType = 'medicine' | 'custom'
 export type SnoozeMinutes = 10 | 30 | 60
 export type AdBannerPlacementParam =
+	| 'today'
 	| 'cabinet'
 	| 'shopping'
 	| 'more'

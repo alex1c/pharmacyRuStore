@@ -129,20 +129,45 @@ export function useAppBootstrap (): BootstrapState {
 		}
 	}, [database])
 
-	// Tap on medication reminder → Today (safe fallback).
+	// Tap on medication reminder → Today tab. Ads errors must never block nav.
 	useEffect(() => {
+		function openTodayFromNotification () {
+			try {
+				adsService.recordMedicalAction('notification_open')
+			} catch (error) {
+				analytics.reportError(error, {
+					source: 'notificationResponse.ads',
+				})
+			}
+			try {
+				// Explicit Today route — do not restore the last active tab.
+				router.replace('/')
+			} catch (error) {
+				analytics.reportError(error, {
+					source: 'notificationResponse.navigate',
+				})
+			}
+		}
+
 		const subscription = Notifications.addNotificationResponseReceivedListener(
 			() => {
-				try {
-					adsService.recordMedicalAction('notification_open')
-					router.push('/(tabs)')
-				} catch (error) {
-					analytics.reportError(error, {
-						source: 'notificationResponse.navigate',
-					})
-				}
+				openTodayFromNotification()
 			},
 		)
+
+		// Cold-start: notification that launched the app.
+		void Notifications.getLastNotificationResponseAsync()
+			.then((response) => {
+				if (response) {
+					openTodayFromNotification()
+				}
+			})
+			.catch((error) => {
+				analytics.reportError(error, {
+					source: 'notificationResponse.coldStart',
+				})
+			})
+
 		return () => {
 			subscription.remove()
 		}

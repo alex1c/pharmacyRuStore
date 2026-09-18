@@ -125,10 +125,10 @@ async function applyPackageToDatabase (
 		return { ...row, photo_uri: null }
 	})
 
-	const run = async () => {
-		await clearUserTables(db, options.failAfterClearTable)
+	const run = async (target: SqlExecutor) => {
+		await clearUserTables(target, options.failAfterClearTable)
 		await insertUserTables(
-			db,
+			target,
 			{ ...pack.data, medicines },
 			options.failAfterInsertTable,
 		)
@@ -137,7 +137,7 @@ async function applyPackageToDatabase (
 	if (db.withTransactionAsync) {
 		await db.withTransactionAsync(run)
 	} else {
-		await run()
+		await run(db)
 	}
 }
 

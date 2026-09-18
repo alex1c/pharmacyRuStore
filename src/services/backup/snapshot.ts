@@ -26,8 +26,8 @@ export async function createBackupPackage (
 		readMediaBytes?: (uri: string) => Promise<Uint8Array | null>
 	},
 ): Promise<{ pack: BackupPackage; warnings: string[] }> {
-	const run = async () => {
-		const data = await readBackupData(db)
+	const run = async (target: SqlExecutor) => {
+		const data = await readBackupData(target)
 		const { media, warnings, medicines } = await collectMedicineMedia(
 			data.medicines,
 			options?.readMediaBytes,
@@ -68,7 +68,7 @@ export async function createBackupPackage (
 	if (db.withTransactionAsync) {
 		return db.withTransactionAsync(run)
 	}
-	return run()
+	return run(db)
 }
 
 export async function readBackupData (db: SqlExecutor): Promise<BackupData> {

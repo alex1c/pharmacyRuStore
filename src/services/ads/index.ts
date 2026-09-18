@@ -39,6 +39,8 @@ export {
 	isBannerPlacementAllowed,
 	BANNER_BLOCKED_SCREENS,
 	BannerPlacements,
+	normalizeAppPathname,
+	resolveBannerPlacementForPathname,
 } from './placements'
 export {
 	isInterstitialEligible,

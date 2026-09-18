@@ -21,9 +21,9 @@ export async function applyMigrations (db: SqlExecutor): Promise<number> {
 			continue
 		}
 
-		const apply = async () => {
-			await db.execAsync(migration.sql)
-			await db.runAsync(
+		const apply = async (target: SqlExecutor) => {
+			await target.execAsync(migration.sql)
+			await target.runAsync(
 				`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`,
 				[migration.version, new Date().toISOString()],
 			)
@@ -32,7 +32,7 @@ export async function applyMigrations (db: SqlExecutor): Promise<number> {
 		if (db.withTransactionAsync) {
 			await db.withTransactionAsync(apply)
 		} else {
-			await apply()
+			await apply(db)
 		}
 	}
 

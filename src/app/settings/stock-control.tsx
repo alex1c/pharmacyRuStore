@@ -51,8 +51,16 @@ export default function StockControlSettingsScreen () {
 		setError(null)
 		setSaving(true)
 		try {
-			await setExpiryWarningDays(executor, warningDays)
-			await setDefaultLowStockThreshold(executor, parsed)
+			// Persist both settings atomically via scoped transaction.
+			const persist = async (target: typeof executor) => {
+				await setExpiryWarningDays(target, warningDays)
+				await setDefaultLowStockThreshold(target, parsed)
+			}
+			if (executor.withTransactionAsync) {
+				await executor.withTransactionAsync(persist)
+			} else {
+				await persist(executor)
+			}
 			const { safeSyncAutomaticShoppingItems } = await import(
 				'@/domain/shoppingService'
 			)

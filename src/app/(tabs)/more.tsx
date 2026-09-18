@@ -10,7 +10,6 @@ import {
 	Screen,
 	SectionHeader,
 } from '@/components/ui'
-import { AppBannerAd } from '@/components/ads/AppBannerAd'
 import { APP_NAME, HEALTH_DISCLAIMER, tabs } from '@/constants/copy'
 import { colors, typography } from '@/constants/theme'
 import { analytics } from '@/services/analytics'
@@ -61,7 +60,7 @@ export default function MoreScreen () {
 					title="Члены семьи"
 					subtitle="Профили для курсов"
 					showChevron
-					onPress={() => router.push('/family/index')}
+					onPress={() => router.push('/family')}
 				/>
 				<ListRow
 					title="Резервная копия"
@@ -101,7 +100,6 @@ export default function MoreScreen () {
 			<Card>
 				<Text style={styles.disclaimer}>{HEALTH_DISCLAIMER}</Text>
 			</Card>
-			<AppBannerAd placement="more" />
 		</Screen>
 	)
 }

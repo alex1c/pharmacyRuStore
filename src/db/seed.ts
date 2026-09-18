@@ -61,13 +61,13 @@ export async function ensureFirstRunDefaults (
 		archivedAt: null,
 	}
 
-	const writeSeed = async () => {
-		await db.runAsync(
+	const writeSeed = async (target: SqlExecutor) => {
+		await target.runAsync(
 			`INSERT INTO households (id, name, created_at, updated_at)
 			 VALUES (?, ?, ?, ?)`,
 			[household.id, household.name, household.createdAt, household.updatedAt],
 		)
-		await db.runAsync(
+		await target.runAsync(
 			`INSERT INTO people (id, household_id, name, created_at, updated_at)
 			 VALUES (?, ?, ?, ?, ?)`,
 			[
@@ -78,7 +78,7 @@ export async function ensureFirstRunDefaults (
 				person.updatedAt,
 			],
 		)
-		await db.runAsync(
+		await target.runAsync(
 			`INSERT INTO medicine_cabinets (id, household_id, name, created_at, updated_at)
 			 VALUES (?, ?, ?, ?, ?)`,
 			[
@@ -89,7 +89,7 @@ export async function ensureFirstRunDefaults (
 				cabinet.updatedAt,
 			],
 		)
-		await db.runAsync(
+		await target.runAsync(
 			`INSERT INTO app_meta (key, value) VALUES (?, ?)`,
 			[SEED_FLAG_KEY, '1'],
 		)
@@ -98,7 +98,7 @@ export async function ensureFirstRunDefaults (
 	if (db.withTransactionAsync) {
 		await db.withTransactionAsync(writeSeed)
 	} else {
-		await writeSeed()
+		await writeSeed(db)
 	}
 
 	return { seeded: true, household, person, cabinet }

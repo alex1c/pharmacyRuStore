@@ -65,12 +65,12 @@ export class AlreadyTakenError extends Error {
 
 async function runInTransaction<T> (
 	db: SqlExecutor,
-	task: () => Promise<T>,
+	task: (tx: SqlExecutor) => Promise<T>,
 ): Promise<T> {
 	if (db.withTransactionAsync) {
 		return db.withTransactionAsync(task)
 	}
-	return task()
+	return task(db)
 }
 
 /**
@@ -264,9 +264,9 @@ export async function markOccurrenceTaken (
 	const now = options.now ?? new Date()
 	const actualTakenAt = now.toISOString()
 
-	return runInTransaction(db, async () => {
+	return runInTransaction(db, async (tx) => {
 		const existing = await findActiveOccurrenceIntake(
-			db,
+			tx,
 			occurrence.scheduleId,
 			occurrence.scheduledDate,
 			occurrence.scheduledTime,
@@ -279,11 +279,11 @@ export async function markOccurrenceTaken (
 			}
 			// Cancel snoozed/skipped so unique index allows a new taken row.
 			if (existing.status === 'snoozed' || existing.status === 'skipped') {
-				await cancelIntakeRecord(db, existing.id)
+				await cancelIntakeRecord(tx, existing.id)
 			}
 		}
 
-		const course = await getCourseById(db, occurrence.courseId)
+		const course = await getCourseById(tx, occurrence.courseId)
 		if (!course || course.archivedAt) {
 			throw new Error('Course not found')
 		}
@@ -293,7 +293,7 @@ export async function markOccurrenceTaken (
 			throw new Error('INVALID_DOSE')
 		}
 
-		const batches = await listBatchesForMedicine(db, occurrence.medicineId)
+		const batches = await listBatchesForMedicine(tx, occurrence.medicineId)
 		assertCompatibleInventoryUnit(batches, occurrence.doseUnit)
 		const plan = planFefoConsumption(batches, doseQuantity, occurrence.doseUnit)
 
@@ -305,7 +305,7 @@ export async function markOccurrenceTaken (
 			)
 		}
 
-		const record = await insertIntakeRecord(db, {
+		const record = await insertIntakeRecord(tx, {
 			courseId: occurrence.courseId,
 			scheduleId: occurrence.scheduleId,
 			medicineId: occurrence.medicineId,
@@ -320,8 +320,8 @@ export async function markOccurrenceTaken (
 			inventoryShortfall: plan.shortfall > 0,
 		})
 
-		await applyConsumption(db, plan.allocations)
-		await insertInventoryMovements(db, record.id, plan.allocations)
+		await applyConsumption(tx, plan.allocations)
+		await insertInventoryMovements(tx, record.id, plan.allocations)
 
 		return record
 	})
@@ -337,9 +337,9 @@ export async function markOccurrenceSkipped (
 ): Promise<IntakeRecord> {
 	const now = options.now ?? new Date()
 
-	return runInTransaction(db, async () => {
+	return runInTransaction(db, async (tx) => {
 		const existing = await findActiveOccurrenceIntake(
-			db,
+			tx,
 			occurrence.scheduleId,
 			occurrence.scheduledDate,
 			occurrence.scheduledTime,
@@ -352,10 +352,10 @@ export async function markOccurrenceSkipped (
 			if (existing.status === 'taken') {
 				throw new AlreadyTakenError(existing)
 			}
-			await cancelIntakeRecord(db, existing.id)
+			await cancelIntakeRecord(tx, existing.id)
 		}
 
-		return insertIntakeRecord(db, {
+		return insertIntakeRecord(tx, {
 			courseId: occurrence.courseId,
 			scheduleId: occurrence.scheduleId,
 			medicineId: occurrence.medicineId,
@@ -383,9 +383,9 @@ export async function snoozeOccurrence (
 	const now = options.now ?? new Date()
 	const until = new Date(now.getTime() + minutes * 60_000)
 
-	return runInTransaction(db, async () => {
+	return runInTransaction(db, async (tx) => {
 		const existing = await findActiveOccurrenceIntake(
-			db,
+			tx,
 			occurrence.scheduleId,
 			occurrence.scheduledDate,
 			occurrence.scheduledTime,
@@ -396,16 +396,16 @@ export async function snoozeOccurrence (
 				throw new AlreadyTakenError(existing)
 			}
 			if (existing.status === 'snoozed') {
-				return updateIntakeRecordFields(db, existing.id, {
+				return updateIntakeRecordFields(tx, existing.id, {
 					status: 'snoozed',
 					snoozedUntil: until.toISOString(),
 					skippedAt: null,
 				})
 			}
-			await cancelIntakeRecord(db, existing.id)
+			await cancelIntakeRecord(tx, existing.id)
 		}
 
-		return insertIntakeRecord(db, {
+		return insertIntakeRecord(tx, {
 			courseId: occurrence.courseId,
 			scheduleId: occurrence.scheduleId,
 			medicineId: occurrence.medicineId,
@@ -435,12 +435,12 @@ export async function takePrnDose (
 	const actualTakenAt = now.toISOString()
 	const doseQuantity = options.doseQuantity ?? course.doseQuantity
 
-	return runInTransaction(db, async () => {
+	return runInTransaction(db, async (tx) => {
 		if (!Number.isFinite(doseQuantity) || doseQuantity <= 0) {
 			throw new Error('INVALID_DOSE')
 		}
 
-		const batches = await listBatchesForMedicine(db, course.medicineId)
+		const batches = await listBatchesForMedicine(tx, course.medicineId)
 		assertCompatibleInventoryUnit(batches, course.doseUnit)
 		const plan = planFefoConsumption(batches, doseQuantity, course.doseUnit)
 
@@ -452,7 +452,7 @@ export async function takePrnDose (
 			)
 		}
 
-		const record = await insertIntakeRecord(db, {
+		const record = await insertIntakeRecord(tx, {
 			courseId: course.id,
 			scheduleId: null,
 			medicineId: course.medicineId,
@@ -467,8 +467,8 @@ export async function takePrnDose (
 			inventoryShortfall: plan.shortfall > 0,
 		})
 
-		await applyConsumption(db, plan.allocations)
-		await insertInventoryMovements(db, record.id, plan.allocations)
+		await applyConsumption(tx, plan.allocations)
+		await insertInventoryMovements(tx, record.id, plan.allocations)
 
 		return record
 	})
@@ -481,16 +481,16 @@ export async function undoIntake (
 	db: SqlExecutor,
 	intakeId: string,
 ): Promise<void> {
-	await runInTransaction(db, async () => {
-		const intake = await getIntakeById(db, intakeId)
+	await runInTransaction(db, async (tx) => {
+		const intake = await getIntakeById(tx, intakeId)
 		if (!intake || intake.cancelledAt) {
 			return
 		}
 
 		if (intake.status === 'taken') {
-			const movements = await listMovementsForIntake(db, intakeId)
+			const movements = await listMovementsForIntake(tx, intakeId)
 			await restoreConsumption(
-				db,
+				tx,
 				movements.map((item) => ({
 					batchId: item.batchId,
 					quantity: item.quantity,
@@ -498,7 +498,7 @@ export async function undoIntake (
 			)
 		}
 
-		await cancelIntakeRecord(db, intakeId)
+		await cancelIntakeRecord(tx, intakeId)
 	})
 }
 

@@ -149,9 +149,9 @@ export async function archivePerson (
 	}
 
 	const timestamp = nowIso()
-	const run = async () => {
+	const run = async (target: SqlExecutor) => {
 		if (options.finishActiveCourses) {
-			await db.runAsync(
+			await target.runAsync(
 				`UPDATE medication_courses
 				 SET end_date = COALESCE(end_date, date('now', 'localtime')),
 					 archived_at = ?, updated_at = ?
@@ -159,7 +159,7 @@ export async function archivePerson (
 				[timestamp, timestamp, id],
 			)
 		} else {
-			const active = await db.getFirstAsync<{ count: number }>(
+			const active = await target.getFirstAsync<{ count: number }>(
 				`SELECT COUNT(*) AS count FROM medication_courses
 				 WHERE person_id = ? AND archived_at IS NULL`,
 				[id],
@@ -171,7 +171,7 @@ export async function archivePerson (
 			}
 		}
 
-		await db.runAsync(
+		await target.runAsync(
 			`UPDATE people
 			 SET archived_at = ?, updated_at = ?
 			 WHERE id = ?`,
@@ -182,7 +182,7 @@ export async function archivePerson (
 	if (db.withTransactionAsync) {
 		await db.withTransactionAsync(run)
 	} else {
-		await run()
+		await run(db)
 	}
 }
 

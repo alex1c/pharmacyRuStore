@@ -16,6 +16,7 @@ import {
 	isBannerPlacementAllowed,
 	isInterstitialEligible,
 	markInterstitialShown,
+	normalizeAppPathname,
 	recordMeaningfulAdAction,
 	recordMedicalAdAction,
 	recordNotificationOpen,
@@ -23,6 +24,7 @@ import {
 	resetAdsInitializationForTests,
 	resetInterstitialRuntimeForTests,
 	resolveAdsRuntimeConfig,
+	resolveBannerPlacementForPathname,
 	setAdClockForTests,
 	setAdSessionStartedAtForTests,
 	setAdsRuntimeConfigForTests,
@@ -67,11 +69,11 @@ describe('ads runtime config', () => {
 })
 
 describe('banner placement policy', () => {
-	it('allows only cabinet, shopping, more', () => {
+	it('allows today, cabinet, shopping, more', () => {
+		expect(isBannerPlacementAllowed('today')).toBe(true)
 		expect(isBannerPlacementAllowed('cabinet')).toBe(true)
 		expect(isBannerPlacementAllowed('shopping')).toBe(true)
 		expect(isBannerPlacementAllowed('more')).toBe(true)
-		expect(isBannerPlacementAllowed('today')).toBe(false)
 		expect(isBannerPlacementAllowed('intake')).toBe(false)
 		expect(isBannerPlacementAllowed('history')).toBe(false)
 		expect(isBannerPlacementAllowed('scanner')).toBe(false)
@@ -81,7 +83,6 @@ describe('banner placement policy', () => {
 	it('documents blocked medical-critical screens', () => {
 		expect(BANNER_BLOCKED_SCREENS).toEqual(
 			expect.arrayContaining([
-				'today',
 				'intake',
 				'medicine_edit',
 				'batch_add',
@@ -90,6 +91,43 @@ describe('banner placement policy', () => {
 				'backup',
 			]),
 		)
+		expect(BANNER_BLOCKED_SCREENS).not.toContain('today')
+	})
+})
+
+describe('banner route classification', () => {
+	it('maps real tab routes including Today (/)', () => {
+		expect(resolveBannerPlacementForPathname('/')).toBe('today')
+		expect(resolveBannerPlacementForPathname('/(tabs)')).toBe('today')
+		expect(resolveBannerPlacementForPathname('/(tabs)/')).toBe('today')
+		expect(resolveBannerPlacementForPathname('/(tabs)/index')).toBe('today')
+		expect(resolveBannerPlacementForPathname('/cabinet')).toBe('cabinet')
+		expect(resolveBannerPlacementForPathname('/(tabs)/cabinet')).toBe(
+			'cabinet',
+		)
+		expect(resolveBannerPlacementForPathname('/shopping')).toBe('shopping')
+		expect(resolveBannerPlacementForPathname('/more')).toBe('more')
+	})
+
+	it('never puts dynamic medicine/cabinet IDs into placement', () => {
+		expect(
+			resolveBannerPlacementForPathname('/medicines/med_abc123'),
+		).toBeNull()
+		expect(
+			resolveBannerPlacementForPathname('/cabinets/cab_xyz/locations'),
+		).toBeNull()
+		const placement = resolveBannerPlacementForPathname('/shopping')
+		expect(placement).toBe('shopping')
+		expect(String(placement)).not.toMatch(/med_|cab_/)
+	})
+
+	it('hides banners on unknown and medical routes', () => {
+		expect(resolveBannerPlacementForPathname('/unknown-route')).toBeNull()
+		expect(resolveBannerPlacementForPathname('/scan')).toBeNull()
+		expect(resolveBannerPlacementForPathname('/family')).toBeNull()
+		expect(resolveBannerPlacementForPathname('/settings/backup')).toBeNull()
+		expect(resolveBannerPlacementForPathname('/intake')).toBeNull()
+		expect(normalizeAppPathname('/(tabs)/cabinet/')).toBe('/cabinet')
 	})
 })
 

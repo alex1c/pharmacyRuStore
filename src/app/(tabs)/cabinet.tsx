@@ -36,10 +36,11 @@ import { MedicineCabinet, MedicineSummary } from '@/db/types'
 import { analytics } from '@/services/analytics'
 import { medicineListStatusLine } from '@/utils/statusCopy'
 import { formatQuantityWithUnit } from '@/utils/quantity'
-import { AppBannerAd } from '@/components/ads/AppBannerAd'
 
 /**
  * Main inventory tab with attention-aware statuses.
+ * Single vertical scroll — filters and list share one ScrollView so nothing
+ * overlaps or compresses on short OPPO viewports.
  */
 export default function CabinetScreen () {
 	const { executor, seed } = useDatabase()
@@ -84,13 +85,17 @@ export default function CabinetScreen () {
 	)
 
 	const isEmptyInventory =
-		!loading && items.length === 0 && !query && !cabinetId && attentionFilter === 'all'
+		!loading &&
+		items.length === 0 &&
+		!query &&
+		!cabinetId &&
+		attentionFilter === 'all'
 	const isEmptySearch = !loading && items.length === 0 && Boolean(query)
 	const isEmptyFilter =
 		!loading && items.length === 0 && !isEmptyInventory && !isEmptySearch
 
 	return (
-		<Screen>
+		<Screen scroll>
 			<View style={styles.headerRow}>
 				<View style={styles.headerText}>
 					<AppHeader title="Моя аптечка" />
@@ -193,15 +198,11 @@ export default function CabinetScreen () {
 			) : null}
 
 			{!isEmptyInventory && !isEmptySearch && !isEmptyFilter ? (
-				<ScrollView
-					style={styles.list}
-					contentContainerStyle={styles.listContent}
-					keyboardShouldPersistTaps="handled"
-				>
+				<View style={styles.listContent}>
 					{items.map((item) => (
 						<MedicineListCard key={item.medicine.id} item={item} />
 					))}
-				</ScrollView>
+				</View>
 			) : null}
 
 			<PrimaryButton
@@ -211,7 +212,7 @@ export default function CabinetScreen () {
 						{ text: 'Отмена', style: 'cancel' },
 						{
 							text: 'Сканировать',
-							onPress: () => router.push('/scan/index'),
+							onPress: () => router.push('/scan'),
 						},
 						{
 							text: 'Добавить вручную',
@@ -221,7 +222,6 @@ export default function CabinetScreen () {
 				}}
 				style={styles.fab}
 			/>
-			<AppBannerAd placement="cabinet" />
 		</Screen>
 	)
 }
@@ -307,15 +307,13 @@ const styles = StyleSheet.create({
 		gap: spacing.xs,
 		paddingBottom: spacing.sm,
 	},
-	list: {
-		flex: 1,
-	},
 	listContent: {
 		gap: spacing.sm,
-		paddingBottom: spacing.xl,
+		paddingBottom: spacing.md,
 	},
 	fab: {
 		marginTop: spacing.sm,
+		marginBottom: spacing.md,
 	},
 	cardPress: {
 		borderRadius: radii.lg,

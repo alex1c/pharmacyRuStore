@@ -1,5 +1,6 @@
 /**
  * Reusable sticky banner — hides itself on load failure (no empty hole).
+ * Intended for the Screen bottom dock (outside ScrollView).
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -16,6 +17,9 @@ import {
 import { getYandexAdsModule } from '@/services/ads/yandexAdapter'
 import { logger } from '@/services/logging'
 
+/** Reasonable max sticky banner width on large phones / tablets. */
+const MAX_BANNER_WIDTH_DP = 360
+
 interface AppBannerAdProps {
 	placement: BannerPlacement
 }
@@ -29,7 +33,10 @@ export function AppBannerAd ({ placement }: AppBannerAdProps) {
 		() => getBannerUnitIdForPlacement(placement),
 		[placement],
 	)
-	const stickyWidth = Math.max(320, Math.floor(windowWidth - spacing.md * 2))
+	const stickyWidth = Math.min(
+		MAX_BANNER_WIDTH_DP,
+		Math.max(320, Math.floor(windowWidth - spacing.md * 2)),
+	)
 
 	if (!unitId || !adsService.isEnabled()) {
 		return null
@@ -155,8 +162,7 @@ const styles = StyleSheet.create({
 	wrap: {
 		alignItems: 'center',
 		justifyContent: 'center',
-		marginTop: spacing.md,
-		marginBottom: spacing.sm,
+		marginTop: spacing.xs,
 	},
 	collapsed: {
 		minHeight: 0,

@@ -126,14 +126,14 @@ export async function archiveLocation (
 	}
 
 	const timestamp = nowIso()
-	const run = async () => {
-		await db.runAsync(
+	const run = async (target: SqlExecutor) => {
+		await target.runAsync(
 			`UPDATE medicine_batches
 			 SET storage_location_id = NULL, updated_at = ?
 			 WHERE storage_location_id = ? AND archived_at IS NULL`,
 			[timestamp, id],
 		)
-		await db.runAsync(
+		await target.runAsync(
 			`UPDATE storage_locations
 			 SET archived_at = ?, updated_at = ?
 			 WHERE id = ?`,
@@ -144,7 +144,7 @@ export async function archiveLocation (
 	if (db.withTransactionAsync) {
 		await db.withTransactionAsync(run)
 	} else {
-		await run()
+		await run(db)
 	}
 }
 

@@ -160,7 +160,7 @@ export default function ScanResultScreen () {
 				<Text style={styles.body}>Код не найден в вашей аптечке</Text>
 				<PrimaryButton
 					label="Сканировать снова"
-					onPress={() => router.replace('/scan/index')}
+					onPress={() => router.replace('/scan')}
 				/>
 				<SecondaryButton
 					label="Ввести данные вручную"
@@ -203,7 +203,7 @@ export default function ScanResultScreen () {
 				/>
 				<SecondaryButton
 					label="Сканировать снова"
-					onPress={() => router.replace('/scan/index')}
+					onPress={() => router.replace('/scan')}
 					style={styles.gap}
 				/>
 			</Screen>
@@ -235,7 +235,7 @@ export default function ScanResultScreen () {
 				/>
 				<SecondaryButton
 					label="Сканировать снова"
-					onPress={() => router.replace('/scan/index')}
+					onPress={() => router.replace('/scan')}
 				/>
 			</Screen>
 		)
@@ -261,7 +261,7 @@ export default function ScanResultScreen () {
 				/>
 				<SecondaryButton
 					label="Сканировать снова"
-					onPress={() => router.replace('/scan/index')}
+					onPress={() => router.replace('/scan')}
 					style={styles.gap}
 				/>
 			</View>

@@ -54,7 +54,7 @@ export default function SelectMedicineForScanScreen () {
 		const session = peekPendingScan()
 		if (!session) {
 			Alert.alert('Сессия истекла', 'Отсканируйте код снова.')
-			router.replace('/scan/index')
+			router.replace('/scan')
 			return
 		}
 		try {

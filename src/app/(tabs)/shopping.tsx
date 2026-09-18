@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
 	Alert,
 	Pressable,
@@ -40,7 +40,6 @@ import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 import { Medicine, ShoppingItem } from '@/db/types'
 import { analytics } from '@/services/analytics'
 import { formatQuantityWithUnit } from '@/utils/quantity'
-import { AppBannerAd } from '@/components/ads/AppBannerAd'
 import { adsService } from '@/services/ads'
 
 interface ShoppingView {
@@ -73,6 +72,8 @@ function sortRank (reason: ShoppingItem['reason']): number {
 
 /**
  * «Покупки» — automatic low/empty stock + manual list and purchase flows.
+ * Load requests are generation-guarded so a stale response cannot wipe a
+ * fresher list (badge / empty-list desync).
  */
 export default function ShoppingScreen () {
 	const { executor, seed } = useDatabase()
@@ -83,63 +84,79 @@ export default function ShoppingScreen () {
 	const [medicines, setMedicines] = useState<Medicine[]>([])
 	const [customName, setCustomName] = useState('')
 	const [busyId, setBusyId] = useState<string | null>(null)
+	const loadGenerationRef = useRef(0)
 
 	const load = useCallback(async () => {
-		await safeSyncAutomaticShoppingItems(executor, seed.household.id)
-		const activeRows = await listActiveShoppingItems(
-			executor,
-			seed.household.id,
-		)
-		const completedRows = await listCompletedShoppingItems(
-			executor,
-			seed.household.id,
-			30,
-		)
+		const generation = ++loadGenerationRef.current
+		try {
+			await safeSyncAutomaticShoppingItems(executor, seed.household.id)
+			const activeRows = await listActiveShoppingItems(
+				executor,
+				seed.household.id,
+			)
+			const completedRows = await listCompletedShoppingItems(
+				executor,
+				seed.household.id,
+				30,
+			)
 
-		async function enrich (items: ShoppingItem[]): Promise<ShoppingView[]> {
-			const views: ShoppingView[] = []
-			for (const item of items) {
-				if (item.medicineId) {
-					const medicine = await getMedicineById(executor, item.medicineId)
-					const summary = await getMedicineSummary(executor, item.medicineId)
-					const unit = summary?.unit
-						? getMedicineUnitShortLabel(summary.unit)
-						: ''
-					const qty = summary
-						? formatQuantityWithUnit(summary.totalQuantity, unit)
-						: ''
-					views.push({
-						item,
-						title: medicine?.name ?? 'Лекарство',
-						subtitle:
-							item.status === 'active' && qty
-								? `Осталось ${qty}`
-								: item.source === 'manual'
-									? 'Вручную'
-									: '',
-						reasonLabel: reasonLabel(item.reason),
-						sortRank: sortRank(item.reason),
-					})
-				} else {
-					views.push({
-						item,
-						title: item.customName ?? 'Покупка',
-						subtitle: 'Добавлено вручную',
-						reasonLabel: reasonLabel(item.reason),
-						sortRank: sortRank(item.reason),
-					})
+			async function enrich (items: ShoppingItem[]): Promise<ShoppingView[]> {
+				const views: ShoppingView[] = []
+				for (const item of items) {
+					if (item.medicineId) {
+						const medicine = await getMedicineById(executor, item.medicineId)
+						const summary = await getMedicineSummary(executor, item.medicineId)
+						const unit = summary?.unit
+							? getMedicineUnitShortLabel(summary.unit)
+							: ''
+						const qty = summary
+							? formatQuantityWithUnit(summary.totalQuantity, unit)
+							: ''
+						views.push({
+							item,
+							title: medicine?.name ?? 'Лекарство',
+							subtitle:
+								item.status === 'active' && qty
+									? `Осталось ${qty}`
+									: item.source === 'manual'
+										? 'Вручную'
+										: '',
+							reasonLabel: reasonLabel(item.reason),
+							sortRank: sortRank(item.reason),
+						})
+					} else {
+						views.push({
+							item,
+							title: item.customName ?? 'Покупка',
+							subtitle: 'Добавлено вручную',
+							reasonLabel: reasonLabel(item.reason),
+							sortRank: sortRank(item.reason),
+						})
+					}
 				}
+				return views.sort((a, b) => {
+					if (a.sortRank !== b.sortRank) {
+						return a.sortRank - b.sortRank
+					}
+					return a.title.localeCompare(b.title, 'ru')
+				})
 			}
-			return views.sort((a, b) => {
-				if (a.sortRank !== b.sortRank) {
-					return a.sortRank - b.sortRank
-				}
-				return a.title.localeCompare(b.title, 'ru')
-			})
-		}
 
-		setActive(await enrich(activeRows))
-		setCompleted(await enrich(completedRows))
+			const nextActive = await enrich(activeRows)
+			const nextCompleted = await enrich(completedRows)
+			// Drop stale responses that finished after a newer load started.
+			if (generation !== loadGenerationRef.current) {
+				return
+			}
+			setActive(nextActive)
+			setCompleted(nextCompleted)
+		} catch (error) {
+			if (generation !== loadGenerationRef.current) {
+				return
+			}
+			analytics.reportError(error, { source: 'ShoppingScreen.load' })
+			Alert.alert('Ошибка', 'Не удалось загрузить покупки.')
+		}
 	}, [executor, seed.household.id])
 
 	useFocusEffect(
@@ -150,11 +167,16 @@ export default function ShoppingScreen () {
 	)
 
 	async function openAdd () {
-		const list = await listMedicines(executor, {
-			householdId: seed.household.id,
-		})
-		setMedicines(list)
-		setAdding(true)
+		try {
+			const list = await listMedicines(executor, {
+				householdId: seed.household.id,
+			})
+			setMedicines(list.filter((item) => !item.archivedAt))
+			setAdding(true)
+		} catch (error) {
+			analytics.reportError(error, { source: 'ShoppingScreen.openAdd' })
+			Alert.alert('Ошибка', 'Не удалось открыть форму добавления.')
+		}
 	}
 
 	async function handleAddMedicine (medicine: Medicine) {
@@ -171,6 +193,9 @@ export default function ShoppingScreen () {
 			}
 			setAdding(false)
 			await load()
+		} catch (error) {
+			analytics.reportError(error, { source: 'ShoppingScreen.addMedicine' })
+			Alert.alert('Ошибка', 'Не удалось добавить покупку.')
 		} finally {
 			setBusyId(null)
 		}
@@ -181,14 +206,19 @@ export default function ShoppingScreen () {
 			Alert.alert('Имя', 'Укажите название.')
 			return
 		}
-		await addCustomShoppingItem(executor, {
-			householdId: seed.household.id,
-			customName,
-		})
-		adsService.recordMeaningfulAction('shopping_manual')
-		setCustomName('')
-		setAdding(false)
-		await load()
+		try {
+			await addCustomShoppingItem(executor, {
+				householdId: seed.household.id,
+				customName,
+			})
+			adsService.recordMeaningfulAction('shopping_manual')
+			setCustomName('')
+			setAdding(false)
+			await load()
+		} catch (error) {
+			analytics.reportError(error, { source: 'ShoppingScreen.addCustom' })
+			Alert.alert('Ошибка', 'Не удалось добавить покупку.')
+		}
 	}
 
 	function handleBought (view: ShoppingView) {
@@ -199,7 +229,7 @@ export default function ShoppingScreen () {
 					text: 'Сканировать упаковку',
 					onPress: () => {
 						router.push({
-							pathname: '/scan/index',
+							pathname: '/scan',
 							params: {
 								medicineId: view.item.medicineId!,
 								shoppingItemId: view.item.id,
@@ -227,10 +257,17 @@ export default function ShoppingScreen () {
 			{
 				text: 'Просто отметить купленным',
 				onPress: () => {
-					void markPurchasedSimple(executor, view.item.id).then(() => {
-						void load()
-						adsService.maybeShowInterstitial('shopping_completed')
-					})
+					void markPurchasedSimple(executor, view.item.id)
+						.then(() => {
+							void load()
+							adsService.maybeShowInterstitial('shopping_completed')
+						})
+						.catch((error) => {
+							analytics.reportError(error, {
+								source: 'ShoppingScreen.markPurchased',
+							})
+							Alert.alert('Ошибка', 'Не удалось отметить покупку.')
+						})
 				},
 			},
 			{
@@ -349,26 +386,40 @@ export default function ShoppingScreen () {
 				</Text>
 			</Pressable>
 
-			{showCompleted
-				? completed.map((view) => (
-					<Card key={view.item.id} style={styles.rowDone}>
-						<Text style={styles.title}>{view.title}</Text>
-						<Text style={styles.meta}>{view.reasonLabel}</Text>
-						{view.item.source === 'manual' ? (
-							<SecondaryButton
-								label="Вернуть в список"
-								onPress={() => {
-									void restoreManualShoppingItem(
-										executor,
-										view.item.id,
-									).then(() => load())
-								}}
-							/>
-						) : null}
-					</Card>
-				))
-				: null}
-			<AppBannerAd placement="shopping" />
+			{showCompleted ? (
+				completed.length === 0 ? (
+					<EmptyState
+						title="Пока нет купленных позиций"
+						description="Завершённые покупки появятся здесь."
+						icon="checkmark-done-outline"
+					/>
+				) : (
+					completed.map((view) => (
+						<Card key={view.item.id} style={styles.rowDone}>
+							<Text style={styles.title}>{view.title}</Text>
+							<Text style={styles.meta}>{view.reasonLabel}</Text>
+							{view.item.source === 'manual' ? (
+								<SecondaryButton
+									label="Вернуть в список"
+									onPress={() => {
+										void restoreManualShoppingItem(executor, view.item.id)
+											.then(() => load())
+											.catch((error) => {
+												analytics.reportError(error, {
+													source: 'ShoppingScreen.restore',
+												})
+												Alert.alert(
+													'Ошибка',
+													'Не удалось вернуть покупку в список.',
+												)
+											})
+									}}
+								/>
+							) : null}
+						</Card>
+					))
+				)
+			) : null}
 		</Screen>
 	)
 }

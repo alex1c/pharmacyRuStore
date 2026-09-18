@@ -19,9 +19,9 @@ export async function createMedicineWithFirstBatch (
 	},
 	batchInput: Omit<BatchInput, 'medicineId'>,
 ): Promise<{ medicine: Medicine; batchId: string }> {
-	const run = async () => {
-		const medicine = await createMedicine(db, medicineInput)
-		const batch = await createBatch(db, {
+	const run = async (target: SqlExecutor) => {
+		const medicine = await createMedicine(target, medicineInput)
+		const batch = await createBatch(target, {
 			...batchInput,
 			medicineId: medicine.id,
 		})
@@ -31,5 +31,5 @@ export async function createMedicineWithFirstBatch (
 	if (db.withTransactionAsync) {
 		return db.withTransactionAsync(run)
 	}
-	return run()
+	return run(db)
 }

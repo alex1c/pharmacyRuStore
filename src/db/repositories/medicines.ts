@@ -209,22 +209,22 @@ export async function archiveMedicine (
 	}
 
 	const timestamp = nowIso()
-	const run = async () => {
+	const run = async (target: SqlExecutor) => {
 		// Stop future occurrences while retaining courses, schedules, intakes and
 		// movements as immutable historical references.
-		await db.runAsync(
+		await target.runAsync(
 			`UPDATE medication_courses
 			 SET archived_at = ?, updated_at = ?
 			 WHERE medicine_id = ? AND archived_at IS NULL`,
 			[timestamp, timestamp, id],
 		)
-		await db.runAsync(
+		await target.runAsync(
 			`UPDATE medicine_batches
 			 SET archived_at = ?, updated_at = ?
 			 WHERE medicine_id = ? AND archived_at IS NULL`,
 			[timestamp, timestamp, id],
 		)
-		await db.runAsync(
+		await target.runAsync(
 			`UPDATE medicines
 			 SET archived_at = ?, updated_at = ?
 			 WHERE id = ?`,
@@ -235,7 +235,7 @@ export async function archiveMedicine (
 	if (db.withTransactionAsync) {
 		await db.withTransactionAsync(run)
 	} else {
-		await run()
+		await run(db)
 	}
 }
 
