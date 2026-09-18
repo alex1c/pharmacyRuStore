@@ -75,8 +75,16 @@ export function Screen ({
 
 	const showDock = Boolean(placement) && !keyboardVisible
 
+	// Include bottom inset so primary actions on stack screens (e.g. «Сохранить»
+	// on pack forms) stay above the Android system navigation gesture bar.
+	// Inside tab scenes the tab bar already consumes the inset, so bottom is
+	// typically 0 and we do not double-pad above the tab bar.
 	return (
-		<SafeAreaView style={[styles.safe, style]} edges={['top']} testID={testID}>
+		<SafeAreaView
+			style={[styles.safe, style]}
+			edges={['top', 'bottom']}
+			testID={testID}
+		>
 			<View style={styles.flex}>
 				{body}
 				{showDock && placement ? (
