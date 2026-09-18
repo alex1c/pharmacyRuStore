@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Tabs, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { tabs } from '@/constants/copy'
 import { colors, touchTarget } from '@/constants/theme'
@@ -10,10 +11,13 @@ import { safeSyncAutomaticShoppingItems } from '@/domain/shoppingService'
 
 /**
  * Five primary sections of «Моя аптечка».
+ * Bottom inset keeps tab labels above the OPPO system navigation bar.
  */
 export default function TabsLayout () {
 	const { executor, seed } = useDatabase()
+	const insets = useSafeAreaInsets()
 	const [shoppingBadge, setShoppingBadge] = useState<number | undefined>()
+	const bottomInset = Math.max(insets.bottom, 8)
 
 	useFocusEffect(
 		useCallback(() => {
@@ -37,8 +41,8 @@ export default function TabsLayout () {
 				tabBarStyle: {
 					backgroundColor: colors.surface,
 					borderTopColor: colors.border,
-					minHeight: touchTarget.min + 8,
-					paddingBottom: 6,
+					minHeight: touchTarget.min + bottomInset + 8,
+					paddingBottom: bottomInset,
 					paddingTop: 6,
 				},
 				tabBarLabelStyle: {
@@ -93,7 +97,11 @@ export default function TabsLayout () {
 				options={{
 					title: tabs.more.title,
 					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="ellipsis-horizontal-circle-outline" size={size} color={color} />
+						<Ionicons
+							name="ellipsis-horizontal-circle-outline"
+							size={size}
+							color={color}
+						/>
 					),
 				}}
 			/>
