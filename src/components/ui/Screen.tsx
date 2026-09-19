@@ -7,12 +7,16 @@ import {
 	ViewStyle,
 	StyleProp,
 } from 'react-native'
-import { usePathname } from 'expo-router'
+import { usePathname, useSegments } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { AppBannerAd } from '@/components/ads/AppBannerAd'
 import { colors, spacing } from '@/constants/theme'
 import { resolveBannerPlacementForPathname } from '@/services/ads/placements'
+import {
+	resolveScreenSafeAreaEdges,
+	shouldShowBannerDock,
+} from '@/components/ui/screenLayout'
 
 interface ScreenProps {
 	children: ReactNode
@@ -30,8 +34,14 @@ interface ScreenProps {
 
 /**
  * Standard screen shell with safe-area padding and calm background.
- * Banner (when allowed) docks below content — outside ScrollView — and
- * collapses fully when the keyboard is open or the ad fails to load.
+ *
+ * Layout (flex column):
+ *   content (flex:1) — ScrollView or View
+ *   banner dock (flexShrink:0) — outside ScrollView, collapses when empty
+ *
+ * Tab scenes omit bottom safe-area edges so the dock sits directly above the
+ * tab bar (no large empty gap). Stack scenes keep bottom inset so the dock
+ * clears the Android system navigation bar.
  */
 export function Screen ({
 	children,
@@ -42,6 +52,8 @@ export function Screen ({
 	testID,
 }: ScreenProps) {
 	const pathname = usePathname()
+	const segments = useSegments()
+	const inTabs = segments[0] === '(tabs)'
 	const placement = showBanner
 		? resolveBannerPlacementForPathname(pathname)
 		: null
@@ -73,19 +85,20 @@ export function Screen ({
 		<View style={[styles.content, styles.flex, contentStyle]}>{children}</View>
 	)
 
-	const showDock = Boolean(placement) && !keyboardVisible
+	const showDock = shouldShowBannerDock({
+		placementAllowed: Boolean(placement),
+		showBannerProp: showBanner,
+		keyboardVisible,
+	})
+	const edges = resolveScreenSafeAreaEdges(inTabs)
 
-	// Include bottom inset so primary actions on stack screens (e.g. «Сохранить»
-	// on pack forms) stay above the Android system navigation gesture bar.
-	// Inside tab scenes the tab bar already consumes the inset, so bottom is
-	// typically 0 and we do not double-pad above the tab bar.
 	return (
 		<SafeAreaView
 			style={[styles.safe, style]}
-			edges={['top', 'bottom']}
+			edges={edges}
 			testID={testID}
 		>
-			<View style={styles.flex}>
+			<View style={styles.column}>
 				{body}
 				{showDock && placement ? (
 					<View style={styles.bannerDock} pointerEvents="box-none">
@@ -102,6 +115,9 @@ const styles = StyleSheet.create({
 		flex: 1,
 		backgroundColor: colors.background,
 	},
+	column: {
+		flex: 1,
+	},
 	flex: {
 		flex: 1,
 	},
@@ -110,9 +126,11 @@ const styles = StyleSheet.create({
 		paddingHorizontal: spacing.md,
 		paddingBottom: spacing.lg,
 	},
+	/**
+	 * Fixed footer slot — no reserved empty height when the ad collapses.
+	 * Horizontal / vertical padding lives inside AppBannerAd only when loaded.
+	 */
 	bannerDock: {
-		paddingHorizontal: spacing.md,
-		paddingBottom: spacing.sm,
-		backgroundColor: colors.background,
+		flexShrink: 0,
 	},
 })

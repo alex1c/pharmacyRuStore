@@ -124,7 +124,8 @@ function AppBannerAdInner ({
 		<View
 			style={[
 				styles.wrap,
-				visible ? { minHeight: adSize.height } : styles.collapsed,
+				visible ? styles.wrapVisible : styles.collapsed,
+				visible ? { minHeight: adSize.height } : null,
 			]}
 			pointerEvents={visible ? 'auto' : 'none'}
 			accessibilityElementsHidden={!visible}
@@ -162,12 +163,19 @@ const styles = StyleSheet.create({
 	wrap: {
 		alignItems: 'center',
 		justifyContent: 'center',
-		marginTop: spacing.xs,
+	},
+	/** Padding only after load — avoids empty reserved space under short pages. */
+	wrapVisible: {
+		paddingHorizontal: spacing.md,
+		paddingTop: spacing.xs,
+		paddingBottom: spacing.xs,
 	},
 	collapsed: {
 		minHeight: 0,
 		height: 0,
 		overflow: 'hidden',
+		paddingTop: 0,
+		paddingBottom: 0,
 		marginTop: 0,
 		marginBottom: 0,
 	},

@@ -69,29 +69,29 @@ describe('ads runtime config', () => {
 })
 
 describe('banner placement policy', () => {
-	it('allows today, cabinet, shopping, more', () => {
+	it('allows everyday user screens including intake and settings', () => {
 		expect(isBannerPlacementAllowed('today')).toBe(true)
 		expect(isBannerPlacementAllowed('cabinet')).toBe(true)
 		expect(isBannerPlacementAllowed('shopping')).toBe(true)
 		expect(isBannerPlacementAllowed('more')).toBe(true)
-		expect(isBannerPlacementAllowed('intake')).toBe(false)
-		expect(isBannerPlacementAllowed('history')).toBe(false)
+		expect(isBannerPlacementAllowed('intake')).toBe(true)
+		expect(isBannerPlacementAllowed('cabinets')).toBe(true)
+		expect(isBannerPlacementAllowed('family')).toBe(true)
+		expect(isBannerPlacementAllowed('settings')).toBe(true)
+		expect(isBannerPlacementAllowed('backup')).toBe(true)
+		expect(isBannerPlacementAllowed('medicine')).toBe(true)
+		expect(isBannerPlacementAllowed('course')).toBe(true)
 		expect(isBannerPlacementAllowed('scanner')).toBe(false)
-		expect(isBannerPlacementAllowed('backup')).toBe(false)
+		expect(isBannerPlacementAllowed('bootstrap')).toBe(false)
 	})
 
-	it('documents blocked medical-critical screens', () => {
+	it('documents only camera/bootstrap as hard-blocked screen names', () => {
 		expect(BANNER_BLOCKED_SCREENS).toEqual(
-			expect.arrayContaining([
-				'intake',
-				'medicine_edit',
-				'batch_add',
-				'course_edit',
-				'scanner',
-				'backup',
-			]),
+			expect.arrayContaining(['scanner', 'error', 'bootstrap']),
 		)
 		expect(BANNER_BLOCKED_SCREENS).not.toContain('today')
+		expect(BANNER_BLOCKED_SCREENS).not.toContain('intake')
+		expect(BANNER_BLOCKED_SCREENS).not.toContain('family')
 	})
 })
 
@@ -107,29 +107,49 @@ describe('banner route classification', () => {
 		)
 		expect(resolveBannerPlacementForPathname('/shopping')).toBe('shopping')
 		expect(resolveBannerPlacementForPathname('/more')).toBe('more')
+		expect(resolveBannerPlacementForPathname('/intake')).toBe('intake')
 	})
 
-	it('never puts dynamic medicine/cabinet IDs into placement', () => {
-		expect(
-			resolveBannerPlacementForPathname('/medicines/med_abc123'),
-		).toBeNull()
+	it('maps stack user screens without leaking dynamic IDs', () => {
+		expect(resolveBannerPlacementForPathname('/cabinets')).toBe('cabinets')
 		expect(
 			resolveBannerPlacementForPathname('/cabinets/cab_xyz/locations'),
-		).toBeNull()
-		const placement = resolveBannerPlacementForPathname('/shopping')
-		expect(placement).toBe('shopping')
+		).toBe('cabinets')
+		expect(resolveBannerPlacementForPathname('/family')).toBe('family')
+		expect(resolveBannerPlacementForPathname('/settings/stock-control')).toBe(
+			'settings',
+		)
+		expect(resolveBannerPlacementForPathname('/settings/reminders')).toBe(
+			'settings',
+		)
+		expect(resolveBannerPlacementForPathname('/settings/backup')).toBe(
+			'backup',
+		)
+		expect(resolveBannerPlacementForPathname('/medicines/add')).toBe(
+			'medicine',
+		)
+		expect(
+			resolveBannerPlacementForPathname('/medicines/med_abc123'),
+		).toBe('medicine')
+		expect(resolveBannerPlacementForPathname('/courses/form')).toBe('course')
+		expect(resolveBannerPlacementForPathname('/scan/result')).toBe('medicine')
+		expect(resolveBannerPlacementForPathname('/scan/select-medicine')).toBe(
+			'medicine',
+		)
+		const placement = resolveBannerPlacementForPathname(
+			'/medicines/med_abc123/batches/add',
+		)
+		expect(placement).toBe('medicine')
 		expect(String(placement)).not.toMatch(/med_|cab_/)
 	})
 
-	it('hides banners on unknown and medical routes', () => {
+	it('hides banners on unknown and live scanner routes', () => {
 		expect(resolveBannerPlacementForPathname('/unknown-route')).toBeNull()
 		expect(resolveBannerPlacementForPathname('/scan')).toBeNull()
-		expect(resolveBannerPlacementForPathname('/family')).toBeNull()
-		expect(resolveBannerPlacementForPathname('/settings/backup')).toBeNull()
-		expect(resolveBannerPlacementForPathname('/intake')).toBeNull()
 		expect(normalizeAppPathname('/(tabs)/cabinet/')).toBe('/cabinet')
 	})
 })
+
 
 describe('ad session interstitial policy (injectable clock)', () => {
 	let clock = 0

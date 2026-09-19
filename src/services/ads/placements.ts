@@ -9,26 +9,24 @@ export const BannerPlacements = [
 	'cabinet',
 	'shopping',
 	'more',
+	'intake',
+	'cabinets',
+	'family',
+	'settings',
+	'backup',
+	'medicine',
+	'course',
 ] as const
 
 export type BannerPlacement = (typeof BannerPlacements)[number]
 
-/** Screens / flows where banners are forbidden. */
+/**
+ * Flows where banners must never appear (camera / fatal shells).
+ * Form screens may show a docked banner while the keyboard is closed;
+ * Screen hides the dock when the keyboard opens.
+ */
 export const BANNER_BLOCKED_SCREENS = [
-	'intake',
-	'history',
-	'medicine_edit',
-	'medicine_add',
-	'batch_edit',
-	'batch_add',
-	'course_edit',
-	'course_add',
 	'scanner',
-	'scan_result',
-	'backup',
-	'restore',
-	'reminders',
-	'family',
 	'error',
 	'bootstrap',
 ] as const
@@ -55,7 +53,7 @@ export function normalizeAppPathname (
 
 /**
  * Maps a router pathname to a coarse banner placement, or null when ads
- * must not render (medical forms, unknown routes, bootstrap).
+ * must not render (live camera, unknown routes, bootstrap).
  */
 export function resolveBannerPlacementForPathname (
 	pathname: string | null | undefined,
@@ -74,18 +72,37 @@ export function resolveBannerPlacementForPathname (
 	if (path === '/more') {
 		return 'more'
 	}
+	if (path === '/intake' || path.startsWith('/intake/')) {
+		return 'intake'
+	}
 
-	// Medical / form / management routes stay ad-free.
-	if (
-		path.startsWith('/medicines') ||
-		path.startsWith('/scan') ||
-		path.startsWith('/courses') ||
-		path.startsWith('/family') ||
-		path.startsWith('/settings') ||
-		path.startsWith('/cabinets') ||
-		path === '/intake' ||
-		path.startsWith('/intake/')
-	) {
+	if (path === '/cabinets' || path.startsWith('/cabinets/')) {
+		return 'cabinets'
+	}
+	if (path === '/family' || path.startsWith('/family/')) {
+		return 'family'
+	}
+	if (path === '/settings/backup' || path.startsWith('/settings/backup/')) {
+		return 'backup'
+	}
+	if (path.startsWith('/settings')) {
+		return 'settings'
+	}
+
+	if (path.startsWith('/medicines')) {
+		return 'medicine'
+	}
+	if (path.startsWith('/courses')) {
+		return 'course'
+	}
+
+	// Non-camera scan helpers (result / pick medicine) — coarse medicine bucket.
+	if (path === '/scan/result' || path === '/scan/select-medicine') {
+		return 'medicine'
+	}
+
+	// Live scanner / camera route — never dock a banner here.
+	if (path === '/scan' || path.startsWith('/scan/')) {
 		return null
 	}
 
