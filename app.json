@@ -2,7 +2,7 @@
   "expo": {
     "name": "Моя аптечка",
     "slug": "pharmacy",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pharmacy",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.calculatorplatform.pharmacy",
-      "versionCode": 2,
+      "versionCode": 3,
       "icon": "./assets/images/icon.png",
       "adaptiveIcon": {
         "backgroundColor": "#2A9D8F",
